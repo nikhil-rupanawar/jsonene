@@ -1,0 +1,20 @@
+default_language_version:
+  python: python3.7
+repos:
+  - repo: https://github.com/asottile/seed-isort-config
+    rev: 4d8d9e7fddad11a9ccc757fce38bd36a39538c84 # v1.5.0
+    hooks:
+      - id: seed-isort-config
+        args: [--application-directories=src]
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: 0828ee8ef440d7db26644545943a823155c58a01 # v4.3.4
+    hooks:
+      - id: isort
+  - repo: https://github.com/ambv/black
+    rev: 61feadc0f8db5b3676bd381d86def38da8b094b2 # 18.9b0
+    hooks:
+      - id: black
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: e01bc2c2a1dc289eca5e41ea73f0942efe6e95ca # v2.0.0
+    hooks:
+      - id: flake8
