@@ -17,7 +17,7 @@ $ cd jasonene; python setup.py install
 
 **Import**:
 ```python
-from fields import (
+from jsonene.fields import (
     Boolean,
     List,
     GenericList,
@@ -31,9 +31,9 @@ from fields import (
     String,
     Format,
 )
-from operators import AllOf, AnyOf, OneOf, Not
-from constraints import RequiredDependency
-from exceptions import ValidationError
+from jsonene.operators import AllOf, AnyOf, OneOf, Not
+from jsonene.constraints import RequiredDependency
+from jsonene.exceptions import ValidationError
 ```
 
 **'Const' Field**:
