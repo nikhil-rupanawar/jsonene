@@ -1,16 +1,19 @@
-# json-schema-excel
+# jsonene
 A library to define and use JSON schema as python classes.
 
-This is inspired by:
+**Inspired by**
 
-https://python-jsonschema.readthedocs.io/en/stable/
+[jsonschema](https://python-jsonschema.readthedocs.io/en/stable/)
 
-https://json-schema.org/understanding-json-schema/index.html
-
-https://json-schema.org/draft-07/json-schema-validation.html
+[json-schema](https://json-schema.org/draft-07/json-schema-validation.html)
 
 The basic idea is to provide light weight class based schema defination and data classes
 
+**Installation**
+
+$ git clone https://github.com/nikhil-rupanawar/jsonene.git
+
+$ cd jasonene; python setup.py install
 
 **Import**:
 ```python
