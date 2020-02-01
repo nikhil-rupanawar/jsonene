@@ -4,7 +4,9 @@ A library to define and use JSON schema as python classes.
 This is inspired by:
 
 https://python-jsonschema.readthedocs.io/en/stable/
+
 https://json-schema.org/understanding-json-schema/index.html
+
 https://json-schema.org/draft-07/json-schema-validation.html
 
 The basic idea is to provide light weight class based schema defination and data classes
