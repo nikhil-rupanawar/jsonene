@@ -60,15 +60,13 @@ except ValidationError:
 
 **'List' Field**:
 ```python
-# Lists
 
 # Generic list
 l = List.instance([1, 23, 56, "anything"])
-
 # Supports normal list operations
 l.append("wow")
 l[1:6] # slice
-l2 = l.append(23)
+l.append(23)
 l.extend([45])
 l[2] = 100
 l.validate()
