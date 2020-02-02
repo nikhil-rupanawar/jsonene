@@ -15,7 +15,7 @@ $ git clone https://github.com/nikhil-rupanawar/jsonene.git
 
 $ cd jasonene; python setup.py install
 
-**Import**:
+**Demos**:
 ```python
 from jsonene.fields import (
     Boolean,
@@ -34,67 +34,8 @@ from jsonene.fields import (
 from jsonene.operators import AllOf, AnyOf, OneOf, Not
 from jsonene.constraints import RequiredDependency
 from jsonene.exceptions import ValidationError
-```
-
-**'Const' Field**:
-```python
-
-Const(2).instance(2).validate()  # won't raise error
-
-try:
-    Const(2).instance(3).validate()  # raises error
-except ValidationError:
-    assert True
-```
-
-**'Enum' Field**:
-```python
-# Raises error
-assert Enum([1, 2, 3]).instance(3).validation_error_messages() == []  # no error
-
-try:
-    Enum([1, 2, "Three"])(5).validate()
-except ValidationError:
-    assert True
-```
-
-**'List' Field**:
-```python
-
-# Generic list
-l = List.instance([1, 23, 56, "anything"])
-# Supports normal list operations
-l.append("wow")
-l[1:6] # slice
-l.append(23)
-l.extend([45])
-l[2] = 100
-l.validate()
-l.to_json()
-
-# Type specific list
-errors = List(String).instance(["only", "strings", "are", "allowed"]).validation_errors()
-assert len(list(errors)) == 0  # No errors!
-
-errors = List(String).instance(["only", "strings", 60, 30]).validation_errors()
-# Get validation errors
-assert [e.message for e in errors] == [
-    "60 is not of type 'string'",
-    "30 is not of type 'string'",
-]
-```
-
-**Generic Schema instances**:
-```python
-noschema = GenericSchema.instance(anything="you want", almost_anything=[1, 2, "3"])
-assert len(list(noschema.validation_errors())) == 0
-assert noschema.anything == "you want"
-assert noschema.almost_anything == [1, 2, "3"]
-```
 
 
-**'Schema' Field - Define schema/nested schema**:
-```python
 # Define a Schema
 class Person(Schema):
     name = String()
@@ -102,6 +43,7 @@ class Person(Schema):
     emails = List(Format(Format.EMAIL), unique_items=True)
     contact = String(required=False)
     age = Integer(required=False)
+    date_of_birth = Format(Format.DATE, name="DOB")
 
     class Meta:
         # Must provide contact if emails is provided
@@ -150,17 +92,58 @@ class House(Schema):
             RequiredDependency("area", ["sqtft_rate"]),
             RequiredDependency("sqtft_rate", ["area"]),
         ]
-```
 
-**Use as instances**:
 
-```python
+Const(2).instance(2).validate()  # won't raise error
+
+try:
+    Const(2).instance(3).validate()  # raises error
+except ValidationError:
+    assert True
+
+assert Enum([1, 2, 3]).instance(3).errors == []  # no error
+
+# Raises error
+try:
+    Enum([1, 2, "Three"])(5).validate()
+except ValidationError:
+    assert True
+
+# Lists
+
+# Generic list
+l = List.instance([1, 23, 56, "anything"])
+l.append("wow")
+l[1:6]  # slice
+l.append(23)
+l.extend([45])
+l[2] = 100
+l.validate()  # No errors!
+
+# List accepting only string type
+l = List(String).instance(["only", "strings", "are", "allowed"])
+assert len(l.errors) == 0  # No errors!
+
+l = List(String).instance(["only", "strings", 60, 30])
+assert [e.message for e in l.exceptions] == [
+    "60 is not of type 'string'",
+    "30 is not of type 'string'",
+]
+
+# Instances
+generic = GenericSchema.instance(anything="you want", almost_anything=[1, 2, "3"])
+assert len(generic.errors) == 0
+assert generic.anything == "you want"
+assert generic.almost_anything == [1, 2, "3"]
+
 # Create a instances using Schema
 owner = Owner.instance(
-    name="Nikhil Rupanawar", gender="MALE", emails=["conikhil@gmail.com"],
+    name="Nikhil Rupanawar",
+    gender="MALE",
+    emails=["conikhil@gmail.com"],
+    date_of_birth="1989-01-01",
 )
-
-assert owner.validation_error_messages() == ["'contact' is a dependency of 'emails'"]
+assert owner.errors == ["'contact' is a dependency of 'emails'"]
 
 test = Broker.instance(
     name="Test Rupanwar",
@@ -169,8 +152,9 @@ test = Broker.instance(
     contact="123456",
     brokerage=12345,
     is_broker=True,
+    date_of_birth="1989-01-01",
 )
-assert test.validation_error_messages() == [
+assert test.errors == [
     "'testtest.com' is not a 'email'",
     "'testtest.com' is not a 'email'",
     "['testtest.com', 'testtest.com'] has non-unique elements",
@@ -181,6 +165,7 @@ owner = Owner.instance(
     gender="MALE",
     emails=["conikhil@gmail.com"],
     contact="232321344",
+    date_of_birth="1977-09-11",
 )
 house = House.instance()
 house.seller = owner
@@ -189,9 +174,8 @@ house.sqtft_rate = 6000
 house.area = 1100
 house.is_ready = True
 house.country = "India"
-
 assert house.cost == 6600000
-assert len(house.validation_error_messages()) == 0
+assert len(house.errors) == 0
 
 # Another House
 another_house = House.instance(
@@ -202,6 +186,7 @@ another_house = House.instance(
         contact="123456",
         brokerage=12345,
         is_broker=True,
+        date_of_birth="2002-09-08",
     ),
     address=[123, "A building", "Baner road"],
     sqtft_rate=5000,
@@ -222,6 +207,7 @@ House().validate(
             "name": "nikhil",
             "gender": "MALE",
             "contact": "1234567",
+            "DOB": "1978-09-04",
         },
         "address": [120, "Flat A", "Sarang"],
         "area": 1234,
@@ -236,4 +222,5 @@ House().validate(
 houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
+
 ```

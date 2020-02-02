@@ -4,6 +4,7 @@ import json
 import inspect
 import enum
 
+from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
 from .objects import BaseInstance, SingleValueInstance
@@ -14,15 +15,25 @@ class Field:
 
     class Meta:
         field_dependencies = []
-        additional_properties = False
 
-    def __init__(self, required=True):
+    def __init__(self, required=True, name=None, description=None, title=None):
         self.required = required
+        self.description = description
+        self.title = title
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
 
     def to_json_schema(self):
-        return {"type": self._JSON_SCHEMA_TYPE}
+        schema = {"type": self._JSON_SCHEMA_TYPE}
+        if self.title:
+            schema["title"] = self.title
+            schema["description"] = self.description
+        return schema
 
-    def validate(self, instance, draft_cls=None):
+    def validate(self, instance, draft_cls=None, format_checker=None):
         return jsonschema.validate(
             instance=instance,
             schema=self.to_json_schema(),
@@ -50,6 +61,14 @@ class Field:
 
     def _get_all_supers(self):
         return [cls for cls in self.__class__.__mro__ if cls.__name__ != "object"]
+
+    def _get_allowed_fields_values(self):
+        visited = []
+        for sup in self._get_all_supers():
+            for attr_name, field_obj in sup.__dict__.items():
+                if isinstance(field_obj, Field) and attr_name not in visited:
+                    yield attr_name, field_obj
+                    visited.append(attr_name)
 
 
 class PrimitiveField(Field):
@@ -81,13 +100,18 @@ class Number(PrimitiveField):
     def __init__(
         self,
         required=True,
+        name=None,
+        title=None,
+        description=None,
         min=None,
         max=None,
         exclusive_max=None,
         exclusive_min=None,
         multiple_of=None,
     ):
-        super().__init__(required=required)
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
         self.min = min
         self.max = max
         self.exclusive_min = exclusive_min
@@ -126,26 +150,36 @@ class String(PrimitiveField):
     _VALID_TYPES = (str,)
 
     def __init__(
-        self, required=True, min_length=None, max_length=None, pattern=None, blank=False
+        self,
+        required=True,
+        name=None,
+        title=None,
+        description=None,
+        min_len=None,
+        max_len=None,
+        pattern=None,
+        blank=False,
     ):
-        super().__init__(required=required)
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
 
-        self.min_length = min_length
-        self.max_length = max_length
+        self.min_len = min_len
+        self.max_len = max_len
         self.pattern = pattern
         self.blank = blank
 
     def to_json_schema(self):
         schema = super().to_json_schema()
-        if self.min_length is not None:
-            assert self.min_length >= 0
-            schema["minLength"] = self.min_length
+        if self.min_len is not None:
+            assert self.min_len >= 0
+            schema["minlen"] = self.min_len
         elif self.blank is True:
-            schema["minLength"] = 0
+            schema["minlen"] = 0
 
-        if self.max_length is not None:
-            assert self.max_length >= 0
-            schema["maxLength"] = self.max_length
+        if self.max_len is not None:
+            assert self.max_len >= 0
+            schema["maxlen"] = self.max_len
 
         if self.pattern is not None:
             assert pattern
@@ -163,15 +197,17 @@ class Null(PrimitiveField):
     _JSON_SCHEMA_TYPE = "null"
 
     def __call__(self):
-        return Null.Instance(None)
+        return self.__class__.Instance(None)
 
 
 class Const(Field):
     class Instance(SingleValueInstance):
         pass
 
-    def __init__(self, value, required=False):
-        super().__init__(required=required)
+    def __init__(self, value, required=True, name=None, title=None, description=None):
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
         self._value = value
 
     def __call__(self, value):
@@ -196,11 +232,13 @@ class Enum(Field):
     def __call__(self, value):
         return self.__class__.Instance(value, schema=self)
 
-    def __init__(self, value, required=False):
+    def __init__(self, value, required=True, name=None, title=None, description=None):
         assert isinstance(value, (List.Instance, list, tuple))
         if isinstance(value, List.Instance):
             value = value.serialize()
-        super().__init__(required=required)
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
         self.value = value
 
     def to_json_schema(self):
@@ -235,8 +273,10 @@ class Format(Field):
     class Instance(SingleValueInstance):
         pass
 
-    def __init__(self, format, required=True):
-        super().__init__(required=required)
+    def __init__(self, format, required=True, name=None, title=None, description=None):
+        super().__init__(
+            required=required, name=name, description=description, title=title
+        )
         self.format = format
 
     def __call__(self, value):
@@ -262,12 +302,9 @@ class List(RootField):
 
     # TODO: override copy,  operations to return new List.Instance
     class Instance(BaseInstance):
-        def __init__(self, iterable, schema=None):
-            super().__init__(schema=schema)
+        def __init__(self, iterable, schema):
+            super().__init__(schema)
             self._list = list(iterable)
-
-        def validate(self):
-            self.schema and self.schema.validate(self.serialize())
 
         def serialize(self):
             l = []
@@ -281,8 +318,9 @@ class List(RootField):
         def __getitem__(self, slice_):
             # list does shallow copy only
             if isinstance(slice_, slice):
-                new_list = self._list.__getitem__(slice_)
-                return self.schema.__class__.Instance(new_list, schema=self.schema)
+                return self.schema.__class__.Instance(
+                    self._list.__getitem__(slice_), schema=self.schema
+                )
             else:
                 return self._list.__getitem__(slice_)
 
@@ -293,25 +331,33 @@ class List(RootField):
             attr = getattr(self._list, name, None)
             if attr:
                 return attr
-            return super.__getattr__(name)
+            return super().__getattr__(name)
 
         def __add__(self, other):
             assert isinstance(other, (list, List.Instance))
             if isinstance(other, list):
-                new_list = self._list + other
+                return self.schema.__class__.Instance(
+                    (self._list + other), schema=self.schema
+                )
             else:
-                new_list = self._list + other._list
-            return self.schema.__class__.Instance(new_list, schema=self.schema)
+                return self.schema.__class__.Instance(
+                    (self._list + other._list), schema=self.schema
+                )
 
     def __init__(
         self,
         *types,
         required=False,
+        name=None,
+        title=None,
+        description=None,
         max_items=None,
         min_items=None,
         unique_items=False,
     ):
-        super().__init__(required=required)
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
 
         _types = []
 
@@ -373,14 +419,46 @@ class Schema(RootField):
     class Meta:
         field_dependencies = []
         additional_properties = False
+        allow_additional_instance_propeties = True
 
     class Instance(BaseInstance):
-        # _schema_ fancy?
-        #    - yes but we don't want to minimize conflict with schema as attr name
-        def __init__(self, _schema_=None, **kwargs):
-            super().__init__(schema=_schema_)
-            for k, v in kwargs.items():
-                setattr(self, k, v)
+        def __init__(self, schema, **kwargs):
+            super().__init__(schema)
+            self._ad_props = (
+                self.schema._get_meta_attribute("additional_properties") or False
+            )
+            self._fmap = dict(self.schema._get_allowed_fields_values())
+            self._allow_additional_instance_propeties = (
+                self.schema._get_meta_attribute("allow_additional_instance_propeties")
+                or True
+            )
+            self._validate_and_set_attrs(kwargs)
+
+        def _validate_and_set_attrs(self, kwargs):
+            if self._ad_props is False:
+                for k, v in kwargs.items():
+                    obj = self._fmap.get(k)
+                    if obj:
+                        setattr(self, (obj.name or k), v)
+                    else:
+                        if not self._allow_additional_instance_propeties:
+                            raise AttributeError(
+                                f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
+                            )
+                        setattr(self, k, v)
+            else:
+                for k, v in kwargs.items():
+                    setattr(self, k, v)
+
+        def __getitem__(self, name):
+            if isinstance(name, str):
+                return getattr(self, name)
+            return super().__getitem__(name)
+
+        def __setitem__(self, name, value):
+            if isinstance(name, str):
+                return self._validate_and_set_attrs({name: value})
+            return super().__setitem__(name, value)
 
         def serialize(self):
             data = {}
@@ -394,9 +472,20 @@ class Schema(RootField):
             return data
 
     def __call__(self, **kwargs):
-        return self.__class__.Instance(_schema_=self, **kwargs)
+        return self.__class__.Instance(self, **kwargs)
 
-    def __init__(self, required=False, max_properties=None, min_properties=None):
+    def __init__(
+        self,
+        required=True,
+        name=None,
+        description=None,
+        title=None,
+        max_properties=None,
+        min_properties=None,
+    ):
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
         self.required = required
         self.max_properties = max_properties
         self.min_properties = min_properties
@@ -406,13 +495,11 @@ class Schema(RootField):
         kclass = self.__class__
 
         #  __dict__ only refers currrent class not super chain.
-        all_supers = [cls for cls in self.__class__.__mro__ if cls.__name__ != "object"]
-        for sup in all_supers:
-            for name, field in sup.__dict__.items():
-                if isinstance(field, Field):
-                    _schema["properties"][name] = field.to_json_schema()
-                    if field.required:
-                        _schema["required"].append(name)
+        for attr_name, field_obj in self._get_allowed_fields_values():
+            fname = field_obj.name if field_obj.name is not None else attr_name
+            _schema["properties"][fname] = field_obj.to_json_schema()
+            if field_obj.required:
+                _schema["required"].append(fname)
 
         if self.max_properties is not None:
             _schema["maxProperties"] = self.max_properties

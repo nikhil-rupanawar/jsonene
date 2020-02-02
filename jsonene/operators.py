@@ -6,7 +6,10 @@ class OperatorField(Field):
 
 
 class Of(OperatorField):
-    def __init__(self, *types, required=False):
+    def __init__(self, *types, required=True, name=None, title=None, description=None):
+        super().__init__(
+            required=required, name=name, title=title, description=description
+        )
         _types = []
         for _type in types:
             if not isinstance(_type, Field):

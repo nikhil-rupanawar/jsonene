@@ -2,7 +2,7 @@ import json
 
 
 class BaseInstance:
-    def __init__(self, schema=None):
+    def __init__(self, schema):
         self._schema = schema
 
     def to_json(self, indent=2):
@@ -16,22 +16,21 @@ class BaseInstance:
     def schema(self):
         return self._schema
 
+    @property
+    def errors(self):
+        return [e.message for e in self.exceptions]
+
+    @property
+    def exceptions(self):
+        return self.validate(raise_exception=False)
+
     def serialize(self):
-        return NotImplementedError(f"{self.__class__}: Not implemented")
+        return NotImplementedError(f"{self.__class__}: has not implemented")
 
-    def validate(self, schema=None):
-        schema = schema or self.schema
-        assert schema is not None
-        return self.schema.validate(self.serialize())
-
-    def validation_errors(self, schema=None):
-        schema = schema or self.schema
-        assert schema is not None
-        return self.schema.validation_errors(self.serialize())
-
-    def validation_error_messages(self, schema=None):
-        schema = schema or self.schema
-        return [e.message for e in self.validation_errors()]
+    def validate(self, raise_exception=True):
+        if raise_exception:
+            return self.schema.validate(self.serialize())
+        return [e for e in self.schema.validation_errors(self.serialize())]
 
     def __repr__(self):
         rpr = super().__repr__()
@@ -41,9 +40,11 @@ class BaseInstance:
 
 
 class SingleValueInstance(BaseInstance):
-    def __init__(self, instance, schema=None):
-        super().__init__(schema=schema)
+    def __init__(self, instance, schema):
+        super().__init__(schema)
         self._instance = instance
 
     def serialize(self):
+        if isinstance(self._instance, BaseInstance):
+            return self._instance.serialize()
         return self._instance
