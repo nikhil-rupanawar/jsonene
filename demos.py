@@ -125,6 +125,7 @@ owner = Owner.instance(
     emails=["test@test.com"],
     date_of_birth="1989-01-01",
 )
+
 assert owner.errors == ["'contact' is a dependency of 'emails'"]
 assert owner["date-of-birth"] == "1989-01-01"
 

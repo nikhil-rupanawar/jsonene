@@ -9,7 +9,7 @@ from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
 from .objects import BaseInstance, SingleValueInstance
 
-
+# base class
 class Field:
     _JSON_SCHEMA_TYPE = ""
 
@@ -81,7 +81,7 @@ class PrimitiveField(Field):
         assert isinstance(value, self._VALID_TYPES)
 
     def __call__(self, value):
-        self._precheck()
+        #self._precheck(value)
         return self.__class__.Instance(value, schema=self)
 
     class _AsInstanceDescriptor:
@@ -90,12 +90,15 @@ class PrimitiveField(Field):
                 return owner()
             return instance
 
-    instance = _AsInstanceDescriptor
+    instance = _AsInstanceDescriptor()
 
 
 class Number(PrimitiveField):
     _JSON_SCHEMA_TYPE = "number"
     _VALID_TYPES = (int, float)
+
+    class Instance(SingleValueInstance):
+        pass
 
     def __init__(
         self,
@@ -144,10 +147,15 @@ class Integer(Number):
     _JSON_SCHEMA_TYPE = "integer"
     _VALID_TYPES = (int,)
 
+    class Instance(SingleValueInstance):
+        pass
 
 class String(PrimitiveField):
     _JSON_SCHEMA_TYPE = "string"
     _VALID_TYPES = (str,)
+
+    class Instance(SingleValueInstance):
+        pass
 
     def __init__(
         self,
@@ -192,15 +200,20 @@ class Boolean(PrimitiveField):
     _JSON_SCHEMA_TYPE = "boolean"
     _VALID_TYPES = (bool,)
 
+    class Instance(SingleValueInstance):
+        pass
+
 
 class Null(PrimitiveField):
     _JSON_SCHEMA_TYPE = "null"
+    _VALID_TYPES = (bool,)
 
-    def __call__(self):
-        return self.__class__.Instance(None)
+    class Instance(SingleValueInstance):
+        pass
 
 
 class Const(Field):
+
     class Instance(SingleValueInstance):
         pass
 
@@ -545,5 +558,9 @@ class Schema(RootField):
 
 
 class GenericSchema(Schema):
+    
+    class Instance(SingleValueInstance):
+        pass
+
     class Meta(Schema.Meta):
         additional_properties = True
