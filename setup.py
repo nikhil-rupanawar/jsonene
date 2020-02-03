@@ -9,7 +9,7 @@ setup(
     packages=find_packages(),
     version=__version__,
     description="Type declaration and validation library for JSON",
-    url="https://github.com/nikhil-rupanawar/jsonene/archive/0.0.1.tar.gz",
+    url=f"https://github.com/nikhil-rupanawar/jsonene/archive/{__version__}.tar.gz",
     author="Nikhil Rupanawar",
     author_email="conikhil@gmail.com",
     license="MIT",
