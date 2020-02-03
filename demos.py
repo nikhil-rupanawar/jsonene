@@ -19,12 +19,12 @@ from jsonene.exceptions import ValidationError
 
 # Define a Schema
 class Person(Schema):
-    name = String()
+    name = String(min_len=3)
     gender = Enum(["MALE", "FEMALE", "OTHER"])
     emails = List(Format(Format.EMAIL), unique_items=True)
     contact = String(required=False)
     age = Integer(required=False)
-    date_of_birth = Format(Format.DATE, name="DOB")
+    date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
 
     class Meta:
         # Must provide contact if emails is provided
@@ -56,7 +56,7 @@ class House(Schema):
     country = Const("India")
     garden_area = Number(required=False)
     sqtft_rate = Number(required=False)
-
+    secrete_key = Number(required=False, name="__secrete_key")  # readonly
     # Extend instance class and add properties
     class Instance(Schema.Instance):
         @property
@@ -117,14 +117,16 @@ assert len(generic.errors) == 0
 assert generic.anything == "you want"
 assert generic.almost_anything == [1, 2, "3"]
 
+
 # Create a instances using Schema
 owner = Owner.instance(
-    name="Nikhil Rupanawar",
+    name="Test owner",
     gender="MALE",
-    emails=["conikhil@gmail.com"],
+    emails=["test@test.com"],
     date_of_birth="1989-01-01",
 )
 assert owner.errors == ["'contact' is a dependency of 'emails'"]
+assert owner["date-of-birth"] == "1989-01-01"
 
 test = Broker.instance(
     name="Test Rupanwar",
@@ -174,10 +176,10 @@ another_house = House.instance(
     area=1100,
     is_ready=True,
     country="India",
+    secrete_key=12345,
 )
 another_house.validate()
 assert another_house.cost == 5500000
-
 
 # Validate any json by document
 House().validate(
@@ -188,7 +190,7 @@ House().validate(
             "name": "nikhil",
             "gender": "MALE",
             "contact": "1234567",
-            "DOB": "1978-09-04",
+            "date-of-birth": "1978-09-04",
         },
         "address": [120, "Flat A", "Sarang"],
         "area": 1234,

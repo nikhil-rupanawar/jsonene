@@ -173,17 +173,17 @@ class String(PrimitiveField):
         schema = super().to_json_schema()
         if self.min_len is not None:
             assert self.min_len >= 0
-            schema["minlen"] = self.min_len
+            schema["minLength"] = self.min_len
         elif self.blank is True:
-            schema["minlen"] = 0
+            schema["minLength"] = 0
 
         if self.max_len is not None:
             assert self.max_len >= 0
-            schema["maxlen"] = self.max_len
+            schema["maxLength"] = self.max_len
 
         if self.pattern is not None:
             assert pattern
-            schema["pattarn"] = pattern
+            schema["pattern"] = pattern
 
         return schema
 
@@ -354,6 +354,9 @@ class List(RootField):
         max_items=None,
         min_items=None,
         unique_items=False,
+        contains=None,
+        max_contains=None,
+        min_contains=None,
     ):
         super().__init__(
             required=required, name=name, title=title, description=description
@@ -374,6 +377,9 @@ class List(RootField):
         self.max_items = max_items
         self.min_items = min_items
         self.unique_items = unique_items
+        self.max_contains = max_contains
+        self.min_contains = min_contains
+        self.contains = contains
 
     def __call__(self, iterable):
         return self.__class__.Instance(iterable, schema=self)
@@ -396,6 +402,14 @@ class List(RootField):
 
         if self._get_meta_attribute("additional_items"):
             _schema["additionalItems"] = self._get_meta_attribute("additional_items")
+
+        if self.contains is not None:
+            _schema["contains"] = self.contains.to_json_schema()
+        if self.min_contains is not None:
+            _schema["minContains"] = self.min_contains.to_json_schema()
+        if self.max_contains is not None:
+            _schema["maxContains"] = self.max_contains.to_json_schema()
+
         return _schema
 
     class _AsInstanceDescriptor:
@@ -419,35 +433,40 @@ class Schema(RootField):
     class Meta:
         field_dependencies = []
         additional_properties = False
-        allow_additional_instance_propeties = True
+        strict_instance_attributes = False
 
     class Instance(BaseInstance):
+
+        ignore_attributes = ("_schema", "_field_map", "_strict_check")
+
         def __init__(self, schema, **kwargs):
             super().__init__(schema)
-            self._ad_props = (
-                self.schema._get_meta_attribute("additional_properties") or False
-            )
-            self._fmap = dict(self.schema._get_allowed_fields_values())
-            self._allow_additional_instance_propeties = (
-                self.schema._get_meta_attribute("allow_additional_instance_propeties")
-                or True
+            self._field_map = dict(self.schema._get_allowed_fields_values())
+            self._strict_check = self.schema._get_meta_attribute(
+                "strict_instance_attribute"
             )
             self._validate_and_set_attrs(kwargs)
 
         def _validate_and_set_attrs(self, kwargs):
-            if self._ad_props is False:
-                for k, v in kwargs.items():
-                    obj = self._fmap.get(k)
-                    if obj:
-                        setattr(self, (obj.name or k), v)
-                    else:
-                        if not self._allow_additional_instance_propeties:
-                            raise AttributeError(
-                                f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
-                            )
-                        setattr(self, k, v)
+            if not self.schema._get_meta_attribute("additional_properties"):
+                self._set_by_field_map(kwargs)
             else:
                 for k, v in kwargs.items():
+                    setattr(self, k, v)
+
+        def _set_by_field_map(self, kwargs):
+            for k, v in kwargs.items():
+                obj = self._field_map.get(k)
+                if obj:
+                    if obj.name:
+                        setattr(self, (obj.name or k), v)
+                    else:
+                        setattr(self, k, v)
+                else:
+                    if self._strict_check:
+                        raise AttributeError(
+                            f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
+                        )
                     setattr(self, k, v)
 
         def __getitem__(self, name):
@@ -463,7 +482,7 @@ class Schema(RootField):
         def serialize(self):
             data = {}
             for k, v in vars(self).items():
-                if k.startswith("_"):
+                if k in self.ignore_attributes:
                     continue
                 if isinstance(v, BaseInstance):
                     data[k] = v.serialize()
