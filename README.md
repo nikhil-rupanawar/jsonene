@@ -9,12 +9,6 @@ A library to define and use JSON schema as python classes.
 
 The basic idea is to provide light weight class based schema defination and data classes
 
-**Installation**
-
-$ git clone https://github.com/nikhil-rupanawar/jsonene.git
-
-$ cd jasonene; python setup.py install
-
 **Demos**:
 ```python
 from jsonene.fields import (
@@ -38,12 +32,12 @@ from jsonene.exceptions import ValidationError
 
 # Define a Schema
 class Person(Schema):
-    name = String()
+    name = String(min_len=3)
     gender = Enum(["MALE", "FEMALE", "OTHER"])
     emails = List(Format(Format.EMAIL), unique_items=True)
     contact = String(required=False)
     age = Integer(required=False)
-    date_of_birth = Format(Format.DATE, name="DOB")
+    date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
 
     class Meta:
         # Must provide contact if emails is provided
@@ -73,16 +67,16 @@ class House(Schema):
     is_ready = Boolean()
     area = Number()
     country = Const("India")
-    garden_area = Number(required=False)
-    sqtft_rate = Number(required=False)
-
+    garden_area = Number(required=False, use_default=0)
+    sqtft_rate = Number(required=False, use_default=0)
+    secrete_key = Number(required=False, name="__secrete_key")  # readonly
     # Extend instance class and add properties
     class Instance(Schema.Instance):
         @property
         def cost(self):
             # Safety: fields with required=False should be checked before access.
-            # TODO way to provide defaults
-            return getattr(self, "sqtft_rate", 0) * self.area
+            # Optionaly you can provide default value.
+            return self.sqtft_rate * self.area
 
     # Provide custom meta
     class Meta:
@@ -136,14 +130,17 @@ assert len(generic.errors) == 0
 assert generic.anything == "you want"
 assert generic.almost_anything == [1, 2, "3"]
 
+
 # Create a instances using Schema
 owner = Owner.instance(
-    name="Nikhil Rupanawar",
+    name="Test owner",
     gender="MALE",
-    emails=["conikhil@gmail.com"],
+    emails=["test@test.com"],
     date_of_birth="1989-01-01",
 )
+
 assert owner.errors == ["'contact' is a dependency of 'emails'"]
+assert owner["date-of-birth"] == "1989-01-01"
 
 test = Broker.instance(
     name="Test Rupanwar",
@@ -164,17 +161,16 @@ owner = Owner.instance(
     name="Nikhil Rupanawar",
     gender="MALE",
     emails=["conikhil@gmail.com"],
-    contact="232321344",
-    date_of_birth="1977-09-11",
+    contact="4545454545",
+    date_of_birth="1989-09-11",
 )
 house = House.instance()
 house.seller = owner
 house.address = [123, "A building", "Singad road"]
-house.sqtft_rate = 6000
-house.area = 1100
 house.is_ready = True
 house.country = "India"
-assert house.cost == 6600000
+house.area = 7000
+assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
 
 # Another House
@@ -193,10 +189,10 @@ another_house = House.instance(
     area=1100,
     is_ready=True,
     country="India",
+    secrete_key=12345,
 )
 another_house.validate()
 assert another_house.cost == 5500000
-
 
 # Validate any json by document
 House().validate(
@@ -207,7 +203,7 @@ House().validate(
             "name": "nikhil",
             "gender": "MALE",
             "contact": "1234567",
-            "DOB": "1978-09-04",
+            "date-of-birth": "1978-09-04",
         },
         "address": [120, "Flat A", "Sarang"],
         "area": 1234,
@@ -222,5 +218,6 @@ House().validate(
 houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
+
 
 ```

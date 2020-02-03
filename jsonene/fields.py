@@ -16,15 +16,21 @@ class Field:
     class Meta:
         field_dependencies = []
 
-    def __init__(self, required=True, name=None, description=None, title=None):
+    def __init__(
+        self, required=True, name=None, description=None, title=None, use_default=None
+    ):
         self.required = required
         self.description = description
         self.title = title
-        self._name = name
+        self.name = name
+        if use_default and required:
+            raise Exception("'use_default' is not allowed for 'required' property")
+        self.use_default = self._validate_use_default(use_default)
 
-    @property
-    def name(self):
-        return self._name
+    def _validate_use_default(self, value):
+        if isinstance(value, BaseInstance):
+            value.validate()
+        return value
 
     def to_json_schema(self):
         schema = {"type": self._JSON_SCHEMA_TYPE}
@@ -81,7 +87,7 @@ class PrimitiveField(Field):
         assert isinstance(value, self._VALID_TYPES)
 
     def __call__(self, value):
-        #self._precheck(value)
+        # self._precheck(value)
         return self.__class__.Instance(value, schema=self)
 
     class _AsInstanceDescriptor:
@@ -111,9 +117,14 @@ class Number(PrimitiveField):
         exclusive_max=None,
         exclusive_min=None,
         multiple_of=None,
+        use_default=None,
     ):
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
         self.min = min
         self.max = max
@@ -150,6 +161,7 @@ class Integer(Number):
     class Instance(SingleValueInstance):
         pass
 
+
 class String(PrimitiveField):
     _JSON_SCHEMA_TYPE = "string"
     _VALID_TYPES = (str,)
@@ -167,9 +179,14 @@ class String(PrimitiveField):
         max_len=None,
         pattern=None,
         blank=False,
+        use_default=None,
     ):
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
 
         self.min_len = min_len
@@ -211,15 +228,36 @@ class Null(PrimitiveField):
     class Instance(SingleValueInstance):
         pass
 
+    def __init__(
+        self, required=True, name=None, description=None, title=None, use_default=False
+    ):
+        super().__init__(
+            required=required, name=name, description=description, title=title,
+        )
+        assert isinstance(use_default, bool)
+        if use_default:
+            self.use_default = True
+
 
 class Const(Field):
-
     class Instance(SingleValueInstance):
         pass
 
-    def __init__(self, value, required=True, name=None, title=None, description=None):
+    def __init__(
+        self,
+        value,
+        required=True,
+        name=None,
+        title=None,
+        description=None,
+        use_default=None,
+    ):
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
         self._value = value
 
@@ -245,12 +283,24 @@ class Enum(Field):
     def __call__(self, value):
         return self.__class__.Instance(value, schema=self)
 
-    def __init__(self, value, required=True, name=None, title=None, description=None):
+    def __init__(
+        self,
+        value,
+        required=True,
+        name=None,
+        title=None,
+        description=None,
+        use_default=None,
+    ):
         assert isinstance(value, (List.Instance, list, tuple))
         if isinstance(value, List.Instance):
             value = value.serialize()
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
         self.value = value
 
@@ -286,9 +336,21 @@ class Format(Field):
     class Instance(SingleValueInstance):
         pass
 
-    def __init__(self, format, required=True, name=None, title=None, description=None):
+    def __init__(
+        self,
+        format,
+        required=True,
+        name=None,
+        title=None,
+        description=None,
+        use_default=None,
+    ):
         super().__init__(
-            required=required, name=name, description=description, title=title
+            required=required,
+            name=name,
+            description=description,
+            title=title,
+            use_default=use_default,
         )
         self.format = format
 
@@ -370,9 +432,14 @@ class List(RootField):
         contains=None,
         max_contains=None,
         min_contains=None,
+        use_default=None,
     ):
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
 
         _types = []
@@ -468,24 +535,47 @@ class Schema(RootField):
                     setattr(self, k, v)
 
         def _set_by_field_map(self, kwargs):
-            for k, v in kwargs.items():
-                obj = self._field_map.get(k)
-                if obj:
-                    if obj.name:
-                        setattr(self, (obj.name or k), v)
+            for f, obj in self._field_map.items():
+                is_missing = False
+                try:
+                    v = kwargs.pop(f)
+                except KeyError:
+                    if obj.use_default:
+                        v = obj.use_default
                     else:
-                        setattr(self, k, v)
-                else:
-                    if self._strict_check:
-                        raise AttributeError(
-                            f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
-                        )
-                    setattr(self, k, v)
+                        is_missing = True
+                if is_missing is False:
+                    if obj.name:
+                        setattr(self, (obj.name or f), v)
+                    else:
+                        setattr(self, f, v)
+
+            # for k, v in zip(kwargs.items(), _missing.items()):
+            #     obj = self._field_map.get(k)
+            #     if obj:
+            #         if v == '__missing__':
+
+            #         if obj.name:
+            #             setattr(self, (obj.name or k), v)
+            #         else:
+            #             setattr(self, k, v)
+            #     else:
+            #         if self._strict_check:
+            #             raise AttributeError(
+            #                 f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
+            #             )
+            #         setattr(self, k, v)
 
         def __getitem__(self, name):
             if isinstance(name, str):
                 return getattr(self, name)
             return super().__getitem__(name)
+
+        def __getattr__(self, name):
+            fobj = self._field_map.get(name)
+            if fobj and fobj.use_default is not None:
+                return fobj.use_default
+            raise self.__getattribute__(name)
 
         def __setitem__(self, name, value):
             if isinstance(name, str):
@@ -514,9 +604,14 @@ class Schema(RootField):
         title=None,
         max_properties=None,
         min_properties=None,
+        use_default=None,
     ):
         super().__init__(
-            required=required, name=name, title=title, description=description
+            required=required,
+            name=name,
+            title=title,
+            description=description,
+            use_default=use_default,
         )
         self.required = required
         self.max_properties = max_properties
@@ -558,8 +653,8 @@ class Schema(RootField):
 
 
 class GenericSchema(Schema):
-    
-    class Instance(SingleValueInstance):
+
+    class Instance(Schema.Instance):
         pass
 
     class Meta(Schema.Meta):

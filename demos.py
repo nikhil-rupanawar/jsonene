@@ -54,16 +54,16 @@ class House(Schema):
     is_ready = Boolean()
     area = Number()
     country = Const("India")
-    garden_area = Number(required=False)
-    sqtft_rate = Number(required=False)
+    garden_area = Number(required=False, use_default=0)
+    sqtft_rate = Number(required=False, use_default=0)
     secrete_key = Number(required=False, name="__secrete_key")  # readonly
     # Extend instance class and add properties
     class Instance(Schema.Instance):
         @property
         def cost(self):
             # Safety: fields with required=False should be checked before access.
-            # TODO way to provide defaults
-            return getattr(self, "sqtft_rate", 0) * self.area
+            # Optionaly you can provide default value.
+            return self.sqtft_rate * self.area
 
     # Provide custom meta
     class Meta:
@@ -148,17 +148,16 @@ owner = Owner.instance(
     name="Nikhil Rupanawar",
     gender="MALE",
     emails=["conikhil@gmail.com"],
-    contact="232321344",
-    date_of_birth="1977-09-11",
+    contact="4545454545",
+    date_of_birth="1989-09-11",
 )
 house = House.instance()
 house.seller = owner
 house.address = [123, "A building", "Singad road"]
-house.sqtft_rate = 6000
-house.area = 1100
 house.is_ready = True
 house.country = "India"
-assert house.cost == 6600000
+house.area = 7000
+assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
 
 # Another House
