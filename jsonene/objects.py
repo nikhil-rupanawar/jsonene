@@ -5,9 +5,6 @@ class BaseInstance:
     def __init__(self, schema):
         self._schema = schema
 
-    def to_json(self, indent=2):
-        return json.dumps(self.serialize(), indent=indent)
-
     @property
     def schema_json(self):
         return self.schema.to_json_schema()
@@ -27,6 +24,18 @@ class BaseInstance:
     def serialize(self):
         return NotImplementedError(f"{self.__class__}: has not implemented")
 
+    @classmethod
+    def deserialize(self, data):
+        return NotImplementedError(f"{self.__class__}: has not implemented")
+
+    def serialize_json(self):
+        return self.serialize()
+
+    def to_json(self, indent=2):
+        return json.dumps(self.serialize_json(), indent=indent)
+
+    dumps = to_json
+
     def validate(self, raise_exception=True):
         if raise_exception:
             return self.schema.validate(self.serialize())
@@ -38,6 +47,13 @@ class BaseInstance:
             return f"[{rpr} of <Schema {__name__}.{self.schema.__class__.__name__}>]"
         return rpr
 
+    @classmethod
+    def _confirm_json_loaded(cls, data):
+        assert isinstance(data, (bytes, str))
+        if isinstance(data, (str, bytes)):
+            data = json.loads(data)
+        return data
+
 
 class SingleValueInstance(BaseInstance):
     def __init__(self, instance, schema):
@@ -48,3 +64,6 @@ class SingleValueInstance(BaseInstance):
         if isinstance(self._instance, BaseInstance):
             return self._instance.serialize()
         return self._instance
+
+    def deserialize(self, data):
+        return data

@@ -76,6 +76,12 @@ class Field:
                     yield attr_name, field_obj
                     visited.append(attr_name)
 
+    @classmethod
+    def _confirm_json_loaded(cls, data):
+        if isinstance(data, (str, bytes)):
+            data = json.loads(data)
+        return data
+
 
 class PrimitiveField(Field):
     _VALID_TYPES = ()
@@ -87,8 +93,31 @@ class PrimitiveField(Field):
         assert isinstance(value, self._VALID_TYPES)
 
     def __call__(self, value):
-        # self._precheck(value)
         return self.__class__.Instance(value, schema=self)
+
+    @classmethod
+    def _from_json_class(cls, data):
+        data = cls._confirm_json_loaded(data)
+        schema = cls()
+        schema.validate(data)
+        instance = cls.instance(data)
+        data = instance.deserialize(data)
+        return data
+
+    def _from_json_instance(self, data):
+        data = self._confirm_json_loaded(data)
+        self.validate(data)
+        instance = self.instance(data)
+        data = instance.deserialize(data)
+        return data
+
+    class _FromJsonDescriptor:
+        def __get__(self, instance, owner=None):
+            if not instance:
+                return owner._from_json_class
+            return instance._from_json_instance
+
+    from_json = _FromJsonDescriptor()
 
     class _AsInstanceDescriptor:
         def __get__(self, instance, owner=None):
@@ -167,7 +196,8 @@ class String(PrimitiveField):
     _VALID_TYPES = (str,)
 
     class Instance(SingleValueInstance):
-        pass
+        def serialize_json():
+            return str(self._instance)
 
     def __init__(
         self,
@@ -334,7 +364,8 @@ class Format(Field):
     REGEX = "regex"
 
     class Instance(SingleValueInstance):
-        pass
+        def serialize_json():
+            return str(self._instance)
 
     def __init__(
         self,
@@ -388,6 +419,25 @@ class List(RootField):
                     l.append(e)
                 else:
                     l.append(e.serialize())
+            return l
+
+        def deserialize(self, data):
+            _types = self.schema._types
+            if isinstance(_types, list):
+                for e, obj in zip(data, _types):
+                    self._list.append(obj.from_json(e))
+            else:
+                obj = _types
+                for e in data:
+                    self._list.append(obj.from_json(e))
+
+        def serialize_json(self):
+            l = []
+            for e in self._list:
+                if isinstance(e, BaseInstance):
+                    l.append(e.serialize_json())
+                else:
+                    l.append(e)
             return l
 
         def __getitem__(self, slice_):
@@ -465,32 +515,64 @@ class List(RootField):
         return self.__class__.Instance(iterable, schema=self)
 
     def to_json_schema(self):
-        _schema = super().to_json_schema()
+        schema = super().to_json_schema()
         if isinstance(self._types, list):
             if self._types:
-                _schema["items"] = []
+                schema["items"] = []
                 for _type in self._types:
-                    _schema["items"].append(_type.to_json_schema())
+                    schema["items"].append(_type.to_json_schema())
         else:
-            _schema["items"] = self._types.to_json_schema()
+            schema["items"] = self._types.to_json_schema()
 
         if self.max_items is not None:
-            _schema["maxItems"] = self.max_items
+            schema["maxItems"] = self.max_items
         if self.min_items is not None:
-            _schema["minItems"] = self.min_items
-        _schema["uniqueItems"] = self.unique_items
+            schema["minItems"] = self.min_items
+
+        schema["uniqueItems"] = self.unique_items
 
         if self._get_meta_attribute("additional_items"):
-            _schema["additionalItems"] = self._get_meta_attribute("additional_items")
+            schema["additionalItems"] = self._get_meta_attribute("additional_items")
 
         if self.contains is not None:
-            _schema["contains"] = self.contains.to_json_schema()
+            schema["contains"] = self.contains.to_json_schema()
         if self.min_contains is not None:
-            _schema["minContains"] = self.min_contains.to_json_schema()
+            schema["minContains"] = self.min_contains.to_json_schema()
         if self.max_contains is not None:
-            _schema["maxContains"] = self.max_contains.to_json_schema()
+            schema["maxContains"] = self.max_contains.to_json_schema()
 
-        return _schema
+        return schema
+
+    @classmethod
+    def _confirm_json_loaded(cls, data):
+        assert isinstance(data, (bytes, list, str))
+        if isinstance(data, (str, bytes)):
+            data = json.loads(data)
+        return data
+
+    @classmethod
+    def _from_json_class(cls, data):
+        data = cls._confirm_json_loaded(data)
+        schema = cls()
+        schema.validate(data)
+        instance = cls.instance([])
+        instance.deserialize(data)
+        return instance
+
+    def _from_json_instance(self, data):
+        data = self._confirm_json_loaded(data)
+        self.validate(data)
+        instance = self.instance([])
+        instance.deserialize(data)
+        return instance
+
+    class _FromJsonDescriptor:
+        def __get__(self, instance, owner=None):
+            if not instance:
+                return owner._from_json_class
+            return instance._from_json_instance
+
+    from_json = _FromJsonDescriptor()
 
     class _AsInstanceDescriptor:
         def __get__(self, instance, owner=None):
@@ -513,7 +595,6 @@ class Schema(RootField):
     class Meta:
         field_dependencies = []
         additional_properties = False
-        strict_instance_attributes = False
 
     class Instance(BaseInstance):
 
@@ -521,11 +602,11 @@ class Schema(RootField):
 
         def __init__(self, schema, **kwargs):
             super().__init__(schema)
-            self._field_map = dict(self.schema._get_allowed_fields_values())
-            self._strict_check = self.schema._get_meta_attribute(
-                "strict_instance_attribute"
-            )
+            self._set_fields_map()
             self._validate_and_set_attrs(kwargs)
+
+        def _set_fields_map(self):
+            self._field_map = dict(self.schema._get_allowed_fields_values())
 
         def _validate_and_set_attrs(self, kwargs):
             if not self.schema._get_meta_attribute("additional_properties"):
@@ -578,6 +659,32 @@ class Schema(RootField):
                     data[k] = v
             return data
 
+        def serialize_json(self):
+            data = {}
+            for k, v in vars(self).items():
+                if k in self.ignore_attributes:
+                    continue
+                if isinstance(v, BaseInstance):
+                    data[k] = v.serialize_json()
+                else:
+                    data[k] = str(v)
+            return data
+
+        def deserialize(self, data):
+            self._set_by_field_map()
+            for f, obj in self._field_map():
+                is_missing = False
+                try:
+                    v = data[f]
+                except KeyError:
+                    if obj.use_default is not None:
+                        v = obj.use_default
+                    else:
+                        is_missing = True
+
+                if not is_missing:
+                    setattr(self, fname, obj.from_json(v))
+
     def __call__(self, **kwargs):
         return self.__class__.Instance(self, **kwargs)
 
@@ -628,6 +735,22 @@ class Schema(RootField):
         )
         return _schema
 
+    @classmethod
+    def _confirm_json_loaded(cls, data):
+        assert isinstance(data, (bytes, dict, str))
+        if isinstance(data, (str, bytes)):
+            data = json.loads(data)
+        return data
+
+    @classmethod
+    def from_json(cls, data):
+        data = cls._confirm_json_loaded(data)
+        schema = cls()
+        schema.validate(data)
+        instance = cls.instance()
+        instance.deserialize(data)
+        return instance
+
     class _AsInstanceDescriptor:
         def __get__(self, instance, owner=None):
             if not instance:
@@ -638,7 +761,6 @@ class Schema(RootField):
 
 
 class GenericSchema(Schema):
-
     class Instance(Schema.Instance):
         pass
 
