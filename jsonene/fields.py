@@ -540,7 +540,7 @@ class Schema(RootField):
                 try:
                     v = kwargs.pop(f)
                 except KeyError:
-                    if obj.use_default:
+                    if obj.use_default is not None:
                         v = obj.use_default
                     else:
                         is_missing = True
@@ -550,32 +550,17 @@ class Schema(RootField):
                     else:
                         setattr(self, f, v)
 
-            # for k, v in zip(kwargs.items(), _missing.items()):
-            #     obj = self._field_map.get(k)
-            #     if obj:
-            #         if v == '__missing__':
-
-            #         if obj.name:
-            #             setattr(self, (obj.name or k), v)
-            #         else:
-            #             setattr(self, k, v)
-            #     else:
-            #         if self._strict_check:
-            #             raise AttributeError(
-            #                 f"Unexpected attribute '{k}' as per <Schema '{self.schema.__class__}'>"
-            #             )
-            #         setattr(self, k, v)
-
         def __getitem__(self, name):
             if isinstance(name, str):
                 return getattr(self, name)
             return super().__getitem__(name)
 
-        def __getattr__(self, name):
-            fobj = self._field_map.get(name)
-            if fobj and fobj.use_default is not None:
-                return fobj.use_default
-            raise self.__getattribute__(name)
+        # def __getattr__(self, name):
+        #     fobj = self._field_map.get(name)
+        #     if fobj and fobj.use_default is not None:
+        #         self[name] = fobj.use_default
+        #         return fobj.use_default
+        #     raise self.__getattribute__(name)
 
         def __setitem__(self, name, value):
             if isinstance(name, str):

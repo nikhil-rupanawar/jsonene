@@ -159,7 +159,6 @@ house.country = "India"
 house.area = 7000
 assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
-
 # Another House
 another_house = House.instance(
     seller=Broker.instance(
