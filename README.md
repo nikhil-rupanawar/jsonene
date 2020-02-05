@@ -1,5 +1,5 @@
 # jsonene
-A library to define and use JSON schema as python classes.
+This library is intended to provide APIs to define JSON schema, create instances from schema, serialize/de-serialize to/from json or dict to Objects. 
 
 **Inspired by**
 
