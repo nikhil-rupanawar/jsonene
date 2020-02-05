@@ -10,6 +10,7 @@ This library is intended to provide APIs to define JSON schema, create instances
 The basic idea is to provide light weight class based schema defination and data classes
 
 **Installation**
+
 pip install jasonene
 
 **Demos**:
