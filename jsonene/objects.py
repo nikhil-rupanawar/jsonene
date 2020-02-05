@@ -40,10 +40,15 @@ class BaseInstance:
 
     dumps = to_json
 
-    def validate(self, raise_exception=True):
+    def validate(self, raise_exception=True, check_formats=False):
         if raise_exception:
-            return self.schema.validate(self.serialize())
-        return [e for e in self.schema.validation_errors(self.serialize())]
+            return self.schema.validate(self.serialize(), check_formats=check_formats)
+        return [
+            e
+            for e in self.schema.validation_errors(
+                self.serialize(), check_formats=check_formats
+            )
+        ]
 
     def __repr__(self):
         rpr = super().__repr__()

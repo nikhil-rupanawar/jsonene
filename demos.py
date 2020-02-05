@@ -1,4 +1,5 @@
 import datetime
+import json
 from jsonene.fields import (
     Boolean,
     List,
@@ -50,15 +51,15 @@ class Broker(Person):
 
 # Nested schemas
 class House(Schema):
-    seller = AnyOf(Owner(), Broker())  # accepts any of owner or broken
+    seller = AnyOf(Owner, Broker)  # accepts any of owner or broken
     address = List(Number, String, String)  # accept list in specific type order.
     is_ready = Boolean()
     area = Number()
     country = Const("India")
     garden_area = Number(required=False, use_default=0)
     sqtft_rate = Number(required=False, use_default=0)
-    secrete_key = Number(required=False, name="__secrete_key") # Private
-    possesion_date = Format(Format.DATE_TIME)
+    secrete_key = Number(required=False, name="__secrete_key")  # Private
+    possesion_date = Format(Format.DATE)
     # Extend instance class and add properties
     class Instance(Schema.Instance):
         @property
@@ -75,6 +76,7 @@ class House(Schema):
             RequiredDependency("area", ["sqtft_rate"]),
             RequiredDependency("sqtft_rate", ["area"]),
         ]
+
 
 """
 Const(2).instance(2).validate()  # won't raise error
@@ -213,8 +215,7 @@ houses.validate()
 houses.to_json()
 """
 
-
-h = House.from_json(
+HOUSE_DATA_VALID = json.dumps(
     {
         "seller": {
             "age": 22,
@@ -230,9 +231,10 @@ h = House.from_json(
         "garden_area": 123,
         "is_ready": True,
         "country": "India",
-        "possesion_date": str(datetime.datetime.now())
+        "possesion_date": "2020-02-05",  # str(datetime.datetime.now()),
     }
-
 )
-print(h.seller.schema.to_json_schema())
-print(h.to_json())
+import pprint
+
+h = House.from_json(HOUSE_DATA_VALID)
+h.validate(check_formats=True)

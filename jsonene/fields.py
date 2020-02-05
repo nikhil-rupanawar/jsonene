@@ -39,18 +39,24 @@ class Field:
             schema["description"] = self.description
         return schema
 
-    def validate(self, instance, draft_cls=None, format_checker=None):
+    def validate(self, instance, draft_cls=None, check_formats=False):
+        if check_formats:
+            return jsonschema.validate(
+                instance=instance,
+                schema=self.to_json_schema(),
+                cls=draft_cls,
+                format_checker=draft7_format_checker,
+            )
         return jsonschema.validate(
-            instance=instance,
-            schema=self.to_json_schema(),
-            cls=draft_cls,
-            format_checker=draft7_format_checker,
+            instance=instance, schema=self.to_json_schema(), cls=draft_cls,
         )
 
-    def validation_errors(self, instance, draft_cls=None):
+    def validation_errors(self, instance, draft_cls=None, check_formats=False):
         schema = self.to_json_schema()
         if not draft_cls:
             draft_cls = validator_for(schema)
+        if check_formats:
+            return draft_cls(schema).iter_errors(instance)
         return draft_cls(schema, format_checker=draft7_format_checker).iter_errors(
             instance
         )
@@ -682,7 +688,7 @@ class Schema(RootField):
             for fname, obj in self._field_map.items():
                 is_missing = False
                 try:
-                    v = data[fname]
+                    v = data[obj.name or fname]
                 except KeyError:
                     if obj.use_default is not None:
                         v = obj.use_default
@@ -690,7 +696,7 @@ class Schema(RootField):
                         is_missing = True
 
                 if not is_missing:
-                    setattr(self, fname, obj.from_json(v))
+                    setattr(self, obj.name or fname, obj.from_json(v))
 
     def __call__(self, **kwargs):
         return self.__class__.Instance(self, **kwargs)
