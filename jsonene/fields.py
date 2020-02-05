@@ -7,10 +7,11 @@ import enum
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
+from .mixins import ValidatorMixin
 from .objects import BaseInstance, SingleValueInstance
 
-# base class
-class Field:
+# base class for all fields
+class Field(ValidatorMixin):
     _JSON_SCHEMA_TYPE = ""
 
     class Meta:
@@ -36,29 +37,18 @@ class Field:
         schema = {"type": self._JSON_SCHEMA_TYPE}
         if self.title:
             schema["title"] = self.title
+        if self.description:
             schema["description"] = self.description
         return schema
 
     def validate(self, instance, draft_cls=None, check_formats=False):
-        if check_formats:
-            return jsonschema.validate(
-                instance=instance,
-                schema=self.to_json_schema(),
-                cls=draft_cls,
-                format_checker=draft7_format_checker,
-            )
-        return jsonschema.validate(
-            instance=instance, schema=self.to_json_schema(), cls=draft_cls,
+        return super().validate(
+            instance, self, draft_cls=draft_cls, check_formats=check_formats
         )
 
     def validation_errors(self, instance, draft_cls=None, check_formats=False):
-        schema = self.to_json_schema()
-        if not draft_cls:
-            draft_cls = validator_for(schema)
-        if check_formats:
-            return draft_cls(schema).iter_errors(instance)
-        return draft_cls(schema, format_checker=draft7_format_checker).iter_errors(
-            instance
+        return super().validation_errors(
+            instance, self, draft_cls=draft_cls, check_formats=check_formats
         )
 
     def __call__(self, *args, **kwargs):
@@ -273,7 +263,28 @@ class Null(PrimitiveField):
             self.use_default = True
 
 
-class Const(Field):
+class MustInstanceField(Field):
+    def __call__(self, value):
+        return self.__class__.Instance(value, schema=self)
+
+    def to_json_schema(self):
+        value = (
+            self._value.serialize()
+            if isinstance(self._value, BaseInstance)
+            else self._value
+        )
+        return {self._JSON_SCHEMA_TYPE: value}
+
+    def instance(self, instance):
+        return self.Instance(instance, schema=self)
+
+    def from_json(self, data):
+        return self.instance(data)
+
+
+class Const(MustInstanceField):
+    _JSON_SCHEMA_TYPE = "const"
+
     class Instance(SingleValueInstance):
         pass
 
@@ -295,30 +306,12 @@ class Const(Field):
         )
         self._value = value
 
-    def __call__(self, value):
-        return self.__class__.Instance(value, schema=self)
 
-    def to_json_schema(self):
-        value = (
-            self._value.serialize()
-            if isinstance(self._value, BaseInstance)
-            else self._value
-        )
-        return {"const": value}
+class Enum(MustInstanceField):
+    _JSON_SCHEMA_TYPE = "enum"
 
-    def instance(self, instance):
-        return self.Instance(instance, schema=self)
-
-    def from_json(self, data):
-        return self.instance(data)
-
-
-class Enum(Field):
     class Instance(SingleValueInstance):
         pass
-
-    def __call__(self, value):
-        return self.__class__.Instance(value, schema=self)
 
     def __init__(
         self,
@@ -330,8 +323,6 @@ class Enum(Field):
         use_default=None,
     ):
         assert isinstance(value, (List.Instance, list, tuple))
-        if isinstance(value, List.Instance):
-            value = value.serialize()
         super().__init__(
             required=required,
             name=name,
@@ -339,24 +330,15 @@ class Enum(Field):
             description=description,
             use_default=use_default,
         )
-        self.value = value
+        if isinstance(value, List.Instance):
+            value = value.serialize()
 
-    def to_json_schema(self):
-        value = (
-            self.value.serialize()
-            if isinstance(self.value, BaseInstance)
-            else self.value
-        )
-        return {"enum": value}
-
-    def instance(self, instance):
-        return self.Instance(instance, schema=self)
-
-    def from_json(self, data):
-        return self.instance(data)
+        self._value = value
 
 
-class Format(Field):
+class Format(MustInstanceField):
+    _JSON_SCHEMA_TYPE = "format"
+
     EMAIL = "email"
     IDN_EMAIL = "idn-email"
     DATE = "date"
@@ -393,19 +375,7 @@ class Format(Field):
             title=title,
             use_default=use_default,
         )
-        self.format = format
-
-    def __call__(self, value):
-        return self.__class__.Instance(value, schema=self)
-
-    def to_json_schema(self):
-        return {"format": self.format}
-
-    def instance(self, value):
-        return self.Instance(value, schema=self)
-
-    def from_json(self, data):
-        return self.instance(data)
+        self._value = format
 
 
 class RootField(Field):

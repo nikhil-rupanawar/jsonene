@@ -161,7 +161,7 @@ house.is_ready = True
 house.country = "India"
 house.area = 7000
 house.possesion_date = datetime.datetime.now()
-assert house.cost == 0 # sqtft_rate is 0 as default
+assert house.cost == 0  # sqtft_rate is 0 as default
 assert len(house.errors) == 0
 
 
@@ -182,7 +182,7 @@ another_house = House.instance(
     is_ready=True,
     country="India",
     secrete_key=12345,
-    possesion_date=datetime.datetime.now()
+    possesion_date=datetime.datetime.now(),
 )
 another_house.validate()
 assert another_house.cost == 5500000
