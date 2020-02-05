@@ -11,6 +11,8 @@ The basic idea is to provide light weight class based schema defination and data
 
 **Demos**:
 ```python
+import datetime
+import json
 from jsonene.fields import (
     Boolean,
     List,
@@ -62,14 +64,15 @@ class Broker(Person):
 
 # Nested schemas
 class House(Schema):
-    seller = AnyOf(Owner(), Broker())  # accepts any of owner or broken
+    seller = AnyOf(Owner, Broker)  # accepts any of owner or broken
     address = List(Number, String, String)  # accept list in specific type order.
     is_ready = Boolean()
     area = Number()
     country = Const("India")
     garden_area = Number(required=False, use_default=0)
     sqtft_rate = Number(required=False, use_default=0)
-    secrete_key = Number(required=False, name="__secrete_key")  # readonly
+    secrete_key = Number(required=False, name="__secrete_key")  # Private
+    possesion_date = Format(Format.DATE)
     # Extend instance class and add properties
     class Instance(Schema.Instance):
         @property
@@ -170,8 +173,10 @@ house.address = [123, "A building", "Singad road"]
 house.is_ready = True
 house.country = "India"
 house.area = 7000
+house.possesion_date = datetime.datetime.now()
 assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
+
 
 # Another House
 another_house = House.instance(
@@ -190,6 +195,7 @@ another_house = House.instance(
     is_ready=True,
     country="India",
     secrete_key=12345,
+    possesion_date=datetime.datetime.now()
 )
 another_house.validate()
 assert another_house.cost == 5500000
@@ -211,6 +217,7 @@ House().validate(
         "garden_area": 123,
         "is_ready": True,
         "country": "India",
+        "possesion_date": str(datetime.datetime.now()),
     }
 )
 
@@ -219,5 +226,28 @@ houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
 
+
+HOUSE_DATA_VALID = json.dumps(
+    {
+        "seller": {
+            "age": 22,
+            "emails": ["test@test.com", "test2@test.com"],
+            "name": "nikhil",
+            "gender": "MALE",
+            "contact": "1234567",
+            "date-of-birth": "1978-09-04",
+        },
+        "address": [120, "Flat A", "Sarang"],
+        "area": 1234,
+        "sqtft_rate": 2000,
+        "garden_area": 123,
+        "is_ready": True,
+        "country": "India",
+        "possesion_date": "2020-02-05",  # str(datetime.datetime.now()),
+    }
+)
+
+h = House.from_json(HOUSE_DATA_VALID)
+h.validate(check_formats=True)
 
 ```

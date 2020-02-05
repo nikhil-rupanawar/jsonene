@@ -78,7 +78,6 @@ class House(Schema):
         ]
 
 
-"""
 Const(2).instance(2).validate()  # won't raise error
 
 try:
@@ -213,7 +212,7 @@ House().validate(
 houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
-"""
+
 
 HOUSE_DATA_VALID = json.dumps(
     {
@@ -234,7 +233,6 @@ HOUSE_DATA_VALID = json.dumps(
         "possesion_date": "2020-02-05",  # str(datetime.datetime.now()),
     }
 )
-import pprint
 
 h = House.from_json(HOUSE_DATA_VALID)
 h.validate(check_formats=True)

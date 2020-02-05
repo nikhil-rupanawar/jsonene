@@ -6,8 +6,10 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-jsonschema = "*"
-pre-commit = "*"
+jsonschema = "<=3.2.0"
+pre-commit = "<=1.21.0"
+twine = "<=3.1.1"
+strict-rfc3339 = "<=0.7"
 
 [requires]
 python_version = "3.7"

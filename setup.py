@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 from setuptools import find_packages, setup
 
@@ -17,7 +17,7 @@ setup(
     author_email="conikhil@gmail.com",
     license="MIT",
     keywords=["json", "validation", "schema"],
-    install_requires=["jsonschema>=3.2.0", "strict-rfc3339"],
+    install_requires=["jsonschema>=3.2.0"],
     python_requires=">=3.6",
     long_description=long_description,
     long_description_content_type="text/markdown",
