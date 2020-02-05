@@ -13,6 +13,10 @@ class BaseInstance:
     def schema(self):
         return self._schema
 
+    @schema.setter
+    def schema(self, schema):
+        self._schema = schema
+
     @property
     def errors(self):
         return [e.message for e in self.exceptions]

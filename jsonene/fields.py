@@ -78,8 +78,6 @@ class Field:
 
     @classmethod
     def _confirm_json_loaded(cls, data):
-        if isinstance(data, (str, bytes)):
-            data = json.loads(data)
         return data
 
 
@@ -305,6 +303,9 @@ class Const(Field):
     def instance(self, instance):
         return self.Instance(instance, schema=self)
 
+    def from_json(self, data):
+        return self.instance(data)
+
 
 class Enum(Field):
     class Instance(SingleValueInstance):
@@ -345,6 +346,9 @@ class Enum(Field):
     def instance(self, instance):
         return self.Instance(instance, schema=self)
 
+    def from_json(self, data):
+        return self.instance(data)
+
 
 class Format(Field):
     EMAIL = "email"
@@ -364,7 +368,7 @@ class Format(Field):
     REGEX = "regex"
 
     class Instance(SingleValueInstance):
-        def serialize_json():
+        def serialize_json(self):
             return str(self._instance)
 
     def __init__(
@@ -393,6 +397,9 @@ class Format(Field):
 
     def instance(self, value):
         return self.Instance(value, schema=self)
+
+    def from_json(self, data):
+        return self.instance(data)
 
 
 class RootField(Field):
@@ -671,11 +678,11 @@ class Schema(RootField):
             return data
 
         def deserialize(self, data):
-            self._set_by_field_map()
-            for f, obj in self._field_map():
+            self._set_fields_map()
+            for fname, obj in self._field_map.items():
                 is_missing = False
                 try:
-                    v = data[f]
+                    v = data[fname]
                 except KeyError:
                     if obj.use_default is not None:
                         v = obj.use_default

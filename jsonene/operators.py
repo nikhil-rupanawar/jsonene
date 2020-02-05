@@ -1,5 +1,5 @@
 from .fields import Field
-
+from .exceptions import ValidationError
 
 class OperatorField(Field):
     pass
@@ -7,6 +7,8 @@ class OperatorField(Field):
 
 class Of(OperatorField):
     def __init__(self, *types, required=True, name=None, title=None, description=None):
+        # No nested Of
+        assert all([isinstance(t, Of) is False for t in types]) is True
         super().__init__(
             required=required, name=name, title=title, description=description
         )
@@ -23,6 +25,19 @@ class Of(OperatorField):
         for t in self._types:
             schema.append(t.to_json_schema())
         return {self.operator: schema}
+
+    def from_json(self, data):
+        _type = None
+        for t in self._types:
+            try:
+                t.validate(data)
+                _type = t
+                break
+            except ValidationError:
+                pass
+        if _type is None:
+            return data
+        return _type.from_json(data)
 
 
 class AnyOf(Of):

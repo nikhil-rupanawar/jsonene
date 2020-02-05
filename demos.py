@@ -57,7 +57,7 @@ class House(Schema):
     country = Const("India")
     garden_area = Number(required=False, use_default=0)
     sqtft_rate = Number(required=False, use_default=0)
-    secrete_key = Number(required=False, name="__secrete_key")  # Private
+    secrete_key = Number(required=False, name="__secrete_key") # Private
     possesion_date = Format(Format.DATE_TIME)
     # Extend instance class and add properties
     class Instance(Schema.Instance):
@@ -76,7 +76,7 @@ class House(Schema):
             RequiredDependency("sqtft_rate", ["area"]),
         ]
 
-
+"""
 Const(2).instance(2).validate()  # won't raise error
 
 try:
@@ -160,8 +160,9 @@ house.is_ready = True
 house.country = "India"
 house.area = 7000
 house.possesion_date = datetime.datetime.now()
-assert house.cost == 0  # sqtft_rate is 0 as default
+assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
+
 
 # Another House
 another_house = House.instance(
@@ -180,7 +181,7 @@ another_house = House.instance(
     is_ready=True,
     country="India",
     secrete_key=12345,
-    possesion_date=datetime.datetime.now(),
+    possesion_date=datetime.datetime.now()
 )
 another_house.validate()
 assert another_house.cost == 5500000
@@ -210,3 +211,28 @@ House().validate(
 houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
+"""
+
+
+h = House.from_json(
+    {
+        "seller": {
+            "age": 22,
+            "emails": ["test@test.com", "test2@test.com"],
+            "name": "nikhil",
+            "gender": "MALE",
+            "contact": "1234567",
+            "date-of-birth": "1978-09-04",
+        },
+        "address": [120, "Flat A", "Sarang"],
+        "area": 1234,
+        "sqtft_rate": 2000,
+        "garden_area": 123,
+        "is_ready": True,
+        "country": "India",
+        "possesion_date": str(datetime.datetime.now())
+    }
+
+)
+print(h.seller.schema.to_json_schema())
+print(h.to_json())
