@@ -3,11 +3,12 @@ import abc
 import json
 import inspect
 import enum
+from collections.abc import Iterable
 
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
-from .mixins import ValidatorMixin, JsonSchemableMixin
+from .mixins import ValidatorMixin, JsonSchemableMixin, InstanceMixin
 from .objects import BaseInstance, SingleValueInstance
 
 # base class for all fields
@@ -24,8 +25,8 @@ class Field(JsonSchemableMixin, ValidatorMixin):
         self.description = description
         self.title = title
         self.name = name
-        if use_default and required:
-            raise Exception("'use_default' is not allowed for 'required' property")
+        # if use_default and required:
+        #     raise Exception("'use_default' is not allowed for 'required' property")
         self.use_default = self._validate_use_default(use_default)
 
     def _validate_use_default(self, value):
@@ -262,7 +263,7 @@ class MustInstanceField(Field):
     def to_json_schema(self):
         value = (
             self._value.serialize()
-            if isinstance(self._value, BaseInstance)
+            if isinstance(self._value, InstanceMixin)
             else self._value
         )
         return {self._JSON_SCHEMA_TYPE: value}
@@ -307,14 +308,14 @@ class Enum(MustInstanceField):
 
     def __init__(
         self,
-        value,
+        iterable,
         required=True,
         name=None,
         title=None,
         description=None,
         use_default=None,
     ):
-        assert isinstance(value, (List.Instance, list, tuple))
+        assert isinstance(iterable, Iterable)
         super().__init__(
             required=required,
             name=name,
@@ -322,10 +323,10 @@ class Enum(MustInstanceField):
             description=description,
             use_default=use_default,
         )
-        if isinstance(value, List.Instance):
-            value = value.serialize()
 
-        self._value = value
+        if isinstance(iterable, enum.EnumMeta):
+            iterable = [e.value for e in iterable]
+        self._value = iterable
 
 
 class Format(MustInstanceField):
@@ -384,13 +385,14 @@ class List(RootField):
     # TODO: override copy,  operations to return new List.Instance
     class Instance(BaseInstance):
         def __init__(self, iterable, schema):
+            assert isinstance(iterable, Iterable)
             super().__init__(schema)
             self._list = list(iterable)
 
         def serialize(self):
             l = []
             for e in self._list:
-                if not isinstance(e, BaseInstance):
+                if not isinstance(e, InstanceMixin):
                     l.append(e)
                 else:
                     l.append(e.serialize())
@@ -409,7 +411,7 @@ class List(RootField):
         def serialize_json(self):
             l = []
             for e in self._list:
-                if isinstance(e, BaseInstance):
+                if isinstance(e, InstanceMixin):
                     l.append(e.serialize_json())
                 else:
                     l.append(e)
@@ -602,6 +604,7 @@ class Schema(RootField):
                         is_missing = True
                 if is_missing is False:
                     if obj.name:
+                        obj.attr_name = f
                         setattr(self, (obj.name or f), v)
                     else:
                         setattr(self, f, v)
@@ -611,12 +614,11 @@ class Schema(RootField):
                 return getattr(self, name)
             return super().__getitem__(name)
 
-        # def __getattr__(self, name):
-        #     fobj = self._field_map.get(name)
-        #     if fobj and fobj.use_default is not None:
-        #         self[name] = fobj.use_default
-        #         return fobj.use_default
-        #     raise self.__getattribute__(name)
+        def __getattr__(self, name):
+            for f, obj in self._field_map.items():
+                if getattr(obj, 'attr_name', None) == name:
+                    return getattr(self, obj.name)
+            return self.__getattribute__(name)
 
         def __setitem__(self, name, value):
             if isinstance(name, str):
@@ -628,7 +630,7 @@ class Schema(RootField):
             for k, v in vars(self).items():
                 if k in self.ignore_attributes:
                     continue
-                if isinstance(v, BaseInstance):
+                if isinstance(v, InstanceMixin):
                     data[k] = v.serialize()
                 else:
                     data[k] = v
@@ -639,7 +641,7 @@ class Schema(RootField):
             for k, v in vars(self).items():
                 if k in self.ignore_attributes:
                     continue
-                if isinstance(v, BaseInstance):
+                if isinstance(v, InstanceMixin):
                     data[k] = v.serialize_json()
                 else:
                     data[k] = str(v)

@@ -1,5 +1,6 @@
 import datetime
 import json
+import enum
 from jsonene.fields import (
     Boolean,
     List,
@@ -18,24 +19,42 @@ from jsonene.operators import AllOf, AnyOf, OneOf, Not
 from jsonene.constraints import RequiredDependency
 from jsonene.exceptions import ValidationError
 
+class Gender(enum.Enum):
+    MALE = 'Male'
+    FEMALE = 'Female'
+    OTHER = 'Other'
 
 # Define a Schema
 class Person(Schema):
     name = String(min_len=3, title="Your full name")
-    gender = Enum(["MALE", "FEMALE", "OTHER"])
+    gender = Enum(Gender) # Any iterable
     emails = List(
         Format(Format.EMAIL), unique_items=True, description="List of unique email ids"
     )
     contact = String(required=False)
-    age = Integer(required=False)
+    age = Integer(required=False, use_default=0)
     date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
+
+    class Instance(Schema.Instance):
+
+        @property
+        def prompt(self):
+            return f"{self.name}, {self.age} years {self.gender}"
 
     class Meta:
         # Must provide contact if emails is provided
         field_dependencies = [RequiredDependency("emails", ["contact"])]
 
+# Schema Inheritances
 
-# Schema Inheritance
+class Male(Person):
+    gender = Const(Gender.MALE, use_default=Gender.MALE)
+
+
+class Female(Person):
+    gender = Const(Gender.FEMALE, use_default=Gender.FEMALE)
+
+
 class Owner(Person):
     pass
 
@@ -60,7 +79,7 @@ class House(Schema):
     country = Const("India")
     garden_area = Number(required=False, use_default=0)
     sqtft_rate = Number(required=False, use_default=0)
-    secrete_key = Number(required=False, name="__secrete_key")  # Private
+    secrete_key = Number(required=False, name="__secrete_key")
     possesion_date = Format(Format.DATE)
     # Extend instance class and add properties
     class Instance(Schema.Instance):
@@ -122,21 +141,33 @@ assert len(generic.errors) == 0
 assert generic.anything == "you want"
 assert generic.almost_anything == [1, 2, "3"]
 
+wonder_woman = Female.instance(
+    name='Wonder Woman',
+    emails=['wonder@wonder.com'],
+    contact='same as email',
+    date_of_birth="2017-05-15"
+)
+
+wonder_woman.validate(check_formats=True)
+assert wonder_woman.gender == Gender.FEMALE
 
 # Create a instances using Schema
 owner = Owner.instance(
-    name="Test owner",
-    gender="MALE",
+    name="Rasika",
+    gender="Female",
     emails=["test@test.com"],
     date_of_birth="1989-01-01",
 )
 
+
+assert owner.prompt == "Rasika, 0 years Female"
 assert owner.errors == ["'contact' is a dependency of 'emails'"]
 assert owner["date-of-birth"] == "1989-01-01"
+assert owner["date-of-birth"] == owner.date_of_birth
 
 test = Broker.instance(
-    name="Test Rupanwar",
-    gender="MALE",
+    name="Suresh",
+    gender="Male",
     emails=["testtest.com", "testtest.com"],
     contact="123456",
     brokerage=12345,
@@ -151,7 +182,7 @@ assert test.errors == [
 
 owner = Owner.instance(
     name="Nikhil Rupanawar",
-    gender="MALE",
+    gender="Male",
     emails=["conikhil@gmail.com"],
     contact="4545454545",
     date_of_birth="1989-09-11",
@@ -171,7 +202,7 @@ assert len(house.errors) == 0
 another_house = House.instance(
     seller=Broker.instance(
         name="Test Rupanwar",
-        gender="MALE",
+        gender="Male",
         emails=["test@test.com"],
         contact="123456",
         brokerage=12345,
@@ -188,6 +219,7 @@ another_house = House.instance(
 )
 another_house.validate()
 assert another_house.cost == 5500000
+assert another_house.secrete_key == another_house['__secrete_key']
 
 # Validate any json by document
 House().validate(
@@ -196,7 +228,7 @@ House().validate(
             "age": 22,
             "emails": ["test@test.com", "test2@test.com"],
             "name": "nikhil",
-            "gender": "MALE",
+            "gender": "Male",
             "contact": "1234567",
             "date-of-birth": "1978-09-04",
         },
@@ -222,7 +254,7 @@ HOUSE_DATA_VALID = json.dumps(
             "age": 22,
             "emails": ["test@test.com", "test2@test.com"],
             "name": "nikhil",
-            "gender": "MALE",
+            "gender": "Male",
             "contact": "1234567",
             "date-of-birth": "1978-09-04",
         },
