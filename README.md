@@ -9,6 +9,9 @@ A library to define and use JSON schema as python classes.
 
 The basic idea is to provide light weight class based schema defination and data classes
 
+**Installation**
+pip install jasonene
+
 **Demos**:
 ```python
 import datetime
