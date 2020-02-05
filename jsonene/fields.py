@@ -7,11 +7,11 @@ import enum
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
-from .mixins import ValidatorMixin
+from .mixins import ValidatorMixin, JsonSchemableMixin
 from .objects import BaseInstance, SingleValueInstance
 
 # base class for all fields
-class Field(ValidatorMixin):
+class Field(JsonSchemableMixin, ValidatorMixin):
     _JSON_SCHEMA_TYPE = ""
 
     class Meta:
@@ -32,14 +32,6 @@ class Field(ValidatorMixin):
         if isinstance(value, BaseInstance):
             value.validate()
         return value
-
-    def to_json_schema(self):
-        schema = {"type": self._JSON_SCHEMA_TYPE}
-        if self.title:
-            schema["title"] = self.title
-        if self.description:
-            schema["description"] = self.description
-        return schema
 
     def validate(self, instance, draft_cls=None, check_formats=False):
         return super().validate(

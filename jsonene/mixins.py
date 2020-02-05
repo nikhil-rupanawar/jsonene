@@ -55,3 +55,16 @@ class ValidatorMixin:
         return draft_cls(
             schema, format_checker=jsonschema.draft7_format_checker
         ).iter_errors(instance)
+
+
+class JsonSchemableMixin:
+
+    _JSON_SCHEMA_TYPE = "object"
+
+    def to_json_schema(self, title=None, description=None):
+        schema = {"type": self._JSON_SCHEMA_TYPE}
+        if title is not None:
+            schema["title"] = title
+        if description is not None:
+            schema["description"] = description
+        return schema

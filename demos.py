@@ -21,9 +21,11 @@ from jsonene.exceptions import ValidationError
 
 # Define a Schema
 class Person(Schema):
-    name = String(min_len=3)
+    name = String(min_len=3, title="Your full name")
     gender = Enum(["MALE", "FEMALE", "OTHER"])
-    emails = List(Format(Format.EMAIL), unique_items=True)
+    emails = List(
+        Format(Format.EMAIL), unique_items=True, description="List of unique email ids"
+    )
     contact = String(required=False)
     age = Integer(required=False)
     date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
