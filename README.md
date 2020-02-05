@@ -14,6 +14,8 @@ The basic idea is to provide light weight class based schema defination and data
 pip install jsonene
 
 **Demos**:
+
+
 ```python
 import datetime
 import json
@@ -34,9 +36,10 @@ from jsonene.fields import (
 from jsonene.operators import AllOf, AnyOf, OneOf, Not
 from jsonene.constraints import RequiredDependency
 from jsonene.exceptions import ValidationError
+```
 
-
-# Define a Schema
+**Define a Schema**
+```python
 class Person(Schema):
     name = String(min_len=3)
     gender = Enum(["MALE", "FEMALE", "OTHER"])
@@ -93,52 +96,19 @@ class House(Schema):
             RequiredDependency("area", ["sqtft_rate"]),
             RequiredDependency("sqtft_rate", ["area"]),
         ]
+```
 
 
-Const(2).instance(2).validate()  # won't raise error
+**Create and validate instances**
 
-try:
-    Const(2).instance(3).validate()  # raises error
-except ValidationError:
-    assert True
-
-assert Enum([1, 2, 3]).instance(3).errors == []  # no error
-
-# Raises error
-try:
-    Enum([1, 2, "Three"])(5).validate()
-except ValidationError:
-    assert True
-
-# Lists
-
-# Generic list
-l = List.instance([1, 23, 56, "anything"])
-l.append("wow")
-l[1:6]  # slice
-l.append(23)
-l.extend([45])
-l[2] = 100
-l.validate()  # No errors!
-
-# List accepting only string type
-l = List(String).instance(["only", "strings", "are", "allowed"])
-assert len(l.errors) == 0  # No errors!
-
-l = List(String).instance(["only", "strings", 60, 30])
-assert [e.message for e in l.exceptions] == [
-    "60 is not of type 'string'",
-    "30 is not of type 'string'",
-]
-
-# Instances
+```python
 generic = GenericSchema.instance(anything="you want", almost_anything=[1, 2, "3"])
-assert len(generic.errors) == 0
+assert len(generic.errors) == 0 # Generic schema never raises errors
 assert generic.anything == "you want"
 assert generic.almost_anything == [1, 2, "3"]
 
 
-# Create a instances using Schema
+# Create a instances of schema
 owner = Owner.instance(
     name="Test owner",
     gender="MALE",
@@ -150,9 +120,9 @@ assert owner.errors == ["'contact' is a dependency of 'emails'"]
 assert owner["date-of-birth"] == "1989-01-01"
 
 test = Broker.instance(
-    name="Test Rupanwar",
+    name="Test",
     gender="MALE",
-    emails=["testtest.com", "testtest.com"],
+    emails=["testtest.com", "testtest.com"], # invalid emails, duplicate emails
     contact="123456",
     brokerage=12345,
     is_broker=True,
@@ -164,6 +134,7 @@ assert test.errors == [
     "['testtest.com', 'testtest.com'] has non-unique elements",
 ]
 
+# Owner instance
 owner = Owner.instance(
     name="Nikhil Rupanawar",
     gender="MALE",
@@ -171,6 +142,8 @@ owner = Owner.instance(
     contact="4545454545",
     date_of_birth="1989-09-11",
 )
+
+# House with owner
 house = House.instance()
 house.seller = owner
 house.address = [123, "A building", "Singad road"]
@@ -181,8 +154,7 @@ house.possesion_date = datetime.datetime.now()
 assert house.cost == 0 # sqtft_rate is 0 as default
 assert len(house.errors) == 0
 
-
-# Another House
+# House with broker
 another_house = House.instance(
     seller=Broker.instance(
         name="Test Rupanwar",
@@ -203,8 +175,41 @@ another_house = House.instance(
 )
 another_house.validate()
 assert another_house.cost == 5500000
+```
 
-# Validate any json by document
+**List basics**
+
+```python
+# Generic list
+>>> l = List.instance([1, 23, 56, "anything"])
+>>> l.append("wow")
+>>> l[1:6]  # slice
+>>> l.append(23)
+>>> l.extend([45])
+>>> l[2] = 100
+>>> l.validate()  # No errors!
+```
+
+**List of types**
+```python
+l = List(String).instance(["only", "strings", "are", "allowed"])
+assert len(l.errors) == 0  # No errors!
+
+l = List(String).instance(["only", "strings", 60, 30])
+assert [e.message for e in l.exceptions] == [
+    "60 is not of type 'string'",
+    "30 is not of type 'string'",
+]
+
+# list of house
+houses = List(House).instance([house, another_house])
+houses.validate()
+houses.to_json()
+```
+
+**Validate any document/dict against the schema**
+
+```python
 House().validate(
     {
         "seller": {
@@ -225,12 +230,31 @@ House().validate(
     }
 )
 
-# generate json
-houses = List(House).instance([house, another_house])
-houses.validate()
-houses.to_json()
+```
 
 
+**Enums and Consts**
+
+```python
+
+Const(2).instance(2).validate()  # won't raise error
+
+try:
+    Const(2).instance(3).validate()  # raises error
+except ValidationError:
+    assert True
+
+assert Enum([1, 2, 3]).instance(3).errors == []  # no error
+
+# Raises error
+try:
+    Enum([1, 2, "Three"])(5).validate()
+except ValidationError:
+    assert True
+```
+
+**Construct instance from document/schema**
+```python
 HOUSE_DATA_VALID = json.dumps(
     {
         "seller": {
@@ -253,5 +277,4 @@ HOUSE_DATA_VALID = json.dumps(
 
 h = House.from_json(HOUSE_DATA_VALID)
 h.validate(check_formats=True)
-
 ```
