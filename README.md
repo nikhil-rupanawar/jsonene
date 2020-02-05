@@ -11,7 +11,7 @@ The basic idea is to provide light weight class based schema defination and data
 
 **Installation**
 
-pip install jasonene
+pip install jsonene
 
 **Demos**:
 ```python
