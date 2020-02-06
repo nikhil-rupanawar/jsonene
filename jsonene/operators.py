@@ -14,8 +14,11 @@ class Of(OperatorField):
         _types = []
         for _type in types:
             assert isinstance(_types, Of) is False
-            if issubclass(_type, Field):
-                _type = _type()
+            try:
+                if issubclass(_type, Field):
+                    _type = _type()
+            except:
+                pass
             _types.append(_type)
         self._types = _types
 

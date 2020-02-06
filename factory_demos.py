@@ -33,6 +33,11 @@ class OwnerFactory(PersonFactory):
         model = Owner
 
 
+class BrokerFactory(PersonFactory):
+    class Meta:
+        model = Broker
+
+
 class AddressFactory(ListSchemaFactory):
     house_no = fuzzy.FuzzyInteger(low=1, high=100)
     street_address = fuzzy.FuzzyText(suffix=" road")
