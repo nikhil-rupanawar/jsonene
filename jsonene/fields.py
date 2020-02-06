@@ -414,7 +414,10 @@ class List(RootField):
                 if isinstance(e, InstanceMixin):
                     l.append(e.serialize_json())
                 else:
-                    l.append(e)
+                    if self.is_json_serializale(e):
+                        l.append(e)
+                    else:
+                        l.append(str(e))
             return l
 
         def __getitem__(self, slice_):
@@ -433,7 +436,7 @@ class List(RootField):
             attr = getattr(self._list, name, None)
             if attr:
                 return attr
-            return super().__getattr__(name)
+            return super().__getattribute__(name)
 
         def __add__(self, other):
             assert isinstance(other, (list, List.Instance))
@@ -616,7 +619,7 @@ class Schema(RootField):
 
         def __getattr__(self, name):
             for f, obj in self._field_map.items():
-                if getattr(obj, 'attr_name', None) == name:
+                if getattr(obj, "attr_name", None) == name:
                     return getattr(self, obj.name)
             return self.__getattribute__(name)
 
@@ -644,7 +647,10 @@ class Schema(RootField):
                 if isinstance(v, InstanceMixin):
                     data[k] = v.serialize_json()
                 else:
-                    data[k] = str(v)
+                    if self.is_json_serializale(v):
+                        data[k] = v
+                    else:
+                        data[k] = str(v)
             return data
 
         def deserialize(self, data):

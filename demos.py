@@ -19,15 +19,17 @@ from jsonene.operators import AllOf, AnyOf, OneOf, Not
 from jsonene.constraints import RequiredDependency
 from jsonene.exceptions import ValidationError
 
+
 class Gender(enum.Enum):
-    MALE = 'Male'
-    FEMALE = 'Female'
-    OTHER = 'Other'
+    MALE = "Male"
+    FEMALE = "Female"
+    OTHER = "Other"
+
 
 # Define a Schema
 class Person(Schema):
     name = String(min_len=3, title="Your full name")
-    gender = Enum(Gender) # Any iterable
+    gender = Enum(Gender)  # Any iterable
     emails = List(
         Format(Format.EMAIL), unique_items=True, description="List of unique email ids"
     )
@@ -36,7 +38,6 @@ class Person(Schema):
     date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
 
     class Instance(Schema.Instance):
-
         @property
         def prompt(self):
             return f"{self.name}, {self.age} years {self.gender}"
@@ -45,7 +46,9 @@ class Person(Schema):
         # Must provide contact if emails is provided
         field_dependencies = [RequiredDependency("emails", ["contact"])]
 
+
 # Schema Inheritances
+
 
 class Male(Person):
     gender = Const(Gender.MALE, use_default=Gender.MALE)
@@ -73,7 +76,7 @@ class Broker(Person):
 # Nested schemas
 class House(Schema):
     seller = AnyOf(Owner, Broker)  # accepts any of owner or broken
-    address = List(Number, String, String)  # accept list in specific type order.
+    address = List(Integer, String, String)  # accept list in specific type order.
     is_ready = Boolean()
     area = Number()
     country = Const("India")
@@ -142,10 +145,10 @@ assert generic.anything == "you want"
 assert generic.almost_anything == [1, 2, "3"]
 
 wonder_woman = Female.instance(
-    name='Wonder Woman',
-    emails=['wonder@wonder.com'],
-    contact='same as email',
-    date_of_birth="2017-05-15"
+    name="Wonder Woman",
+    emails=["wonder@wonder.com"],
+    contact="same as email",
+    date_of_birth="2017-05-15",
 )
 
 wonder_woman.validate(check_formats=True)
@@ -193,7 +196,7 @@ house.address = [123, "A building", "Singad road"]
 house.is_ready = True
 house.country = "India"
 house.area = 7000
-house.possesion_date = datetime.datetime.now()
+house.possesion_date = "1989-09-11"
 assert house.cost == 0  # sqtft_rate is 0 as default
 assert len(house.errors) == 0
 
@@ -215,11 +218,11 @@ another_house = House.instance(
     is_ready=True,
     country="India",
     secrete_key=12345,
-    possesion_date=datetime.datetime.now(),
+    possesion_date=str(datetime.datetime.now()),
 )
 another_house.validate()
 assert another_house.cost == 5500000
-assert another_house.secrete_key == another_house['__secrete_key']
+assert another_house.secrete_key == another_house["__secrete_key"]
 
 # Validate any json by document
 House().validate(
@@ -270,3 +273,4 @@ HOUSE_DATA_VALID = json.dumps(
 
 h = House.from_json(HOUSE_DATA_VALID)
 h.validate(check_formats=True)
+json.loads(h.to_json())

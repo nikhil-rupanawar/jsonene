@@ -12,6 +12,14 @@ class InstanceMixin:
     def serialize_json(self):
         return self.serialize()
 
+    @classmethod
+    def is_json_serializale(cls, value):
+        try:
+            json.dumps(value)
+        except TypeError:
+            return False
+        return True
+
     def to_json(self, indent=2):
         return json.dumps(self.serialize_json(), indent=indent)
 
