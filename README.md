@@ -280,7 +280,7 @@ h.validate(check_formats=True)
 ```
 
 
-**Factory-boy integration **
+**Factory-boy integration**
 ```python 
 from demos import Person, Owner, House, Broker, Gender, List, Schema
 from jsonene.factories import SchemaFactory, ListSchemaFactory
