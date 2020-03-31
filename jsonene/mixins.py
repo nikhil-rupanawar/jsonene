@@ -1,13 +1,14 @@
+from __future__ import absolute_import
 import json
 import jsonschema
 
 
-class InstanceMixin:
+class InstanceMixin(object):
     def serialize(self):
-        return NotImplementedError(f"{self.__class__}: has not implemented the method")
+        return NotImplementedError("has not implemented the method")
 
     def deserialize(self, data):
-        return NotImplementedError(f"{self.__class__}: has not implemented the method")
+        return NotImplementedError("has not implemented the method")
 
     def serialize_json(self):
         return self.serialize()
@@ -34,7 +35,7 @@ class InstanceMixin:
         ]
 
 
-class ValidatorMixin:
+class ValidatorMixin(object):
     def validate(self, instance, schema, draft_cls=None, check_formats=False):
         from .fields import Field
 
@@ -65,14 +66,14 @@ class ValidatorMixin:
         ).iter_errors(instance)
 
 
-class JsonSchemableMixin:
+class JsonSchemableMixin(object):
 
-    _JSON_SCHEMA_TYPE = "object"
+    _JSON_SCHEMA_TYPE = u"object"
 
     def to_json_schema(self, title=None, description=None):
-        schema = {"type": self._JSON_SCHEMA_TYPE}
+        schema = {u"type": self._JSON_SCHEMA_TYPE}
         if title is not None:
-            schema["title"] = title
+            schema[u"title"] = title
         if description is not None:
-            schema["description"] = description
+            schema[u"description"] = description
         return schema

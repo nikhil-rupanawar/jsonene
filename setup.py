@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-__version__ = "0.0.13"
+from __future__ import with_statement
+from __future__ import absolute_import
+from io import open
+__version__ = u"0.0.13"
 
 from setuptools import find_packages, setup
 
-with open("README.md", "r") as fh:
+with open(u"README.md", u"r") as fh:
     long_description = fh.read()
 
 setup(
-    name="jsonene",
+    name=u"jsonene",
     packages=find_packages(),
     version=__version__,
-    description="Type declaration and validation library for JSON",
-    url="https://github.com/nikhil-rupanawar/jsonene",
-    author="Nikhil Rupanawar",
-    author_email="conikhil@gmail.com",
-    license="MIT",
-    keywords=["json", "validation", "schema"],
-    install_requires=["jsonschema>=3.2.0"],
-    python_requires=">=3.6",
+    description=u"Type declaration and validation library for JSON",
+    url=u"https://github.com/nikhil-rupanawar/jsonene",
+    author=u"Nikhil Rupanawar",
+    author_email=u"conikhil@gmail.com",
+    license=u"MIT",
+    keywords=[u"json", u"validation", u"schema"],
+    install_requires=[u"jsonschema>=3.2.0"],
+    python_requires=u">=3.6",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type=u"text/markdown",
     classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+        u"Programming Language :: Python :: 3",
+        u"License :: OSI Approved :: MIT License",
+        u"Operating System :: OS Independent",
     ],
 )

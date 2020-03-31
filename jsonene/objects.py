@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import json
 from .mixins import InstanceMixin
 
@@ -27,20 +28,24 @@ class BaseInstance(InstanceMixin):
         return self.validate(raise_exception=False)
 
     def validate(self, raise_exception=True, check_formats=False):
-        return super().validate(
+        return super(BaseInstance, self).validate(
             self.schema, raise_exception=raise_exception, check_formats=check_formats
         )
 
     def __repr__(self):
-        rpr = super().__repr__()
+        rpr = super(BaseInstance, self).__repr__()
         if self.schema:
-            return f"[{rpr} of <Schema {__name__}.{self.schema.__class__.__name__}>]"
+            return "[{rpr} of <Schema {name}.{classname}>]".format(
+                rpr=rpr,
+                name=__name__,
+                classname=self.schema.__class__.__name__
+            )
         return rpr
 
 
 class SingleValueInstance(BaseInstance):
     def __init__(self, instance, schema):
-        super().__init__(schema)
+        super(SingleValueInstance, self).__init__(schema)
         self._instance = instance
 
     def serialize(self):

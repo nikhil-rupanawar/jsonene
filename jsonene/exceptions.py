@@ -1,1 +1,2 @@
+from __future__ import absolute_import
 from jsonschema.exceptions import ValidationError

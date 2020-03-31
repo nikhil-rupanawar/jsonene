@@ -1,15 +1,16 @@
+from __future__ import absolute_import
 from factory import BaseDictFactory, BaseListFactory
 from .fields import Schema, List
 
 
 class SchemaFactory(BaseDictFactory):
-    class Meta:
+    class Meta(object):
         abstract = True
 
     @classmethod
     def _build(cls, model_schema, *args, **kwargs):
         if args:
-            assert False, "Not allowed"
+            assert False, u"Not allowed"
         assert issubclass(model_schema, Schema)
         return model_schema.instance(**kwargs)
 
@@ -19,13 +20,13 @@ class SchemaFactory(BaseDictFactory):
 
 
 class ListSchemaFactory(BaseListFactory):
-    class Meta:
+    class Meta(object):
         abstract = True
 
     @classmethod
     def _build(cls, model_schema, *args, **kwargs):
         if args:
-            assert False, "Not allowed"
+            assert False, u"Not allowed"
 
         assert issubclass(model_schema, List)
         values = kwargs.values()

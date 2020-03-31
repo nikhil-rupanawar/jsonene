@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from .fields import Field
 from .exceptions import ValidationError
 
@@ -7,8 +8,16 @@ class OperatorField(Field):
 
 
 class Of(OperatorField):
-    def __init__(self, *types, required=True, name=None, title=None, description=None):
-        super().__init__(
+    def __init__(self, *types, **_3to2kwargs):
+        if u'description' in _3to2kwargs: description = _3to2kwargs[u'description']; del _3to2kwargs[u'description']
+        else: description = None
+        if u'title' in _3to2kwargs: title = _3to2kwargs[u'title']; del _3to2kwargs[u'title']
+        else: title = None
+        if u'name' in _3to2kwargs: name = _3to2kwargs[u'name']; del _3to2kwargs[u'name']
+        else: name = None
+        if u'required' in _3to2kwargs: required = _3to2kwargs[u'required']; del _3to2kwargs[u'required']
+        else: required = True
+        super(Of, self).__init__(
             required=required, name=name, title=title, description=description
         )
         _types = []
@@ -43,25 +52,25 @@ class Of(OperatorField):
 
 
 class AnyOf(Of):
-    operator = "anyOf"
+    operator = u"anyOf"
 
 
 class AllOf(Of):
-    operator = "allOf"
+    operator = u"allOf"
 
 
 class OneOf(Of):
-    operator = "oneOf"
+    operator = u"oneOf"
 
 
 class Not(Of):
-    operator = "not"
+    operator = u"not"
 
     def __init__(self, _type, required=True, name=None, title=None, description=None):
         # No nested
         assert (isinstaissubclass(_type, Field)) is True
         assert isinstance(_type, Of) is False
-        super().__init__(
+        super(Not, self).__init__(
             required=required, name=name, title=title, description=description
         )
         if issubclass(_type, Field):

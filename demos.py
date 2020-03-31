@@ -1,3 +1,4 @@
+from __future__ import absolute_import, unicode_literals
 import datetime
 import json
 import enum
@@ -40,9 +41,13 @@ class Person(Schema):
     class Instance(Schema.Instance):
         @property
         def prompt(self):
-            return f"{self.name}, {self.age} years {self.gender}"
+            return "{name}, {age} years {gender}".format(
+                name=self.name,
+                age=self.age,
+                gender=self.gender
+            )
 
-    class Meta:
+    class Meta(object):
         # Must provide contact if emails is provided
         field_dependencies = [RequiredDependency("emails", ["contact"])]
 
@@ -93,7 +98,7 @@ class House(Schema):
             return self.sqtft_rate * self.area
 
     # Provide custom meta
-    class Meta:
+    class Meta(object):
         # Must provide area and sqtft_rate if sqtft_rate provided
         # OR v.v.
         field_dependencies = [
@@ -133,9 +138,10 @@ l = List(String).instance(["only", "strings", "are", "allowed"])
 assert len(l.errors) == 0  # No errors!
 
 l = List(String).instance(["only", "strings", 60, 30])
+print [e.message for e in l.exceptions]
 assert [e.message for e in l.exceptions] == [
-    "60 is not of type 'string'",
-    "30 is not of type 'string'",
+    "60 is not of type u'string'",
+    "30 is not of type u'string'",
 ]
 
 # Instances
@@ -162,9 +168,9 @@ owner = Owner.instance(
     date_of_birth="1989-01-01",
 )
 
-
+print owner.errors
 assert owner.prompt == "Rasika, 0 years Female"
-assert owner.errors == ["'contact' is a dependency of 'emails'"]
+assert owner.errors == ["u'contact' is a dependency of u'emails'"]
 assert owner["date-of-birth"] == "1989-01-01"
 assert owner["date-of-birth"] == owner.date_of_birth
 
@@ -177,11 +183,8 @@ test = Broker.instance(
     is_broker=True,
     date_of_birth="1989-01-01",
 )
-assert test.errors == [
-    "'testtest.com' is not a 'email'",
-    "'testtest.com' is not a 'email'",
-    "['testtest.com', 'testtest.com'] has non-unique elements",
-]
+print test.errors
+assert test.errors == ["[u'testtest.com', u'testtest.com'] has non-unique elements", "u'testtest.com' is not a u'email'", "u'testtest.com' is not a u'email'"]
 
 owner = Owner.instance(
     name="Nikhil Rupanawar",
@@ -218,7 +221,7 @@ another_house = House.instance(
     is_ready=True,
     country="India",
     secrete_key=12345,
-    possesion_date=str(datetime.datetime.now()),
+    possesion_date=unicode(datetime.datetime.now()),
 )
 another_house.validate()
 assert another_house.cost == 5500000
@@ -241,7 +244,7 @@ House().validate(
         "garden_area": 123,
         "is_ready": True,
         "country": "India",
-        "possesion_date": str(datetime.datetime.now()),
+        "possesion_date": unicode(datetime.datetime.now()),
     }
 )
 
@@ -270,7 +273,7 @@ HOUSE_DATA_VALID = json.dumps(
         "possesion_date": "2020-02-05",  # str(datetime.datetime.now()),
     }
 )
-
+print type(HOUSE_DATA_VALID)
 h = House.from_json(HOUSE_DATA_VALID)
-h.validate(check_formats=True)
+h.validate()
 json.loads(h.to_json())

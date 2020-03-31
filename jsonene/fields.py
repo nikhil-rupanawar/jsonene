@@ -1,21 +1,23 @@
+from __future__ import absolute_import
 import jsonschema
 import abc
 import json
 import inspect
 import enum
-from collections.abc import Iterable
+from collections import Iterable
 
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
 from .mixins import ValidatorMixin, JsonSchemableMixin, InstanceMixin
 from .objects import BaseInstance, SingleValueInstance
+from itertools import izip
 
 # base class for all fields
 class Field(JsonSchemableMixin, ValidatorMixin):
-    _JSON_SCHEMA_TYPE = ""
+    _JSON_SCHEMA_TYPE = u""
 
-    class Meta:
+    class Meta(object):
         field_dependencies = []
 
     def __init__(
@@ -35,27 +37,27 @@ class Field(JsonSchemableMixin, ValidatorMixin):
         return value
 
     def validate(self, instance, draft_cls=None, check_formats=False):
-        return super().validate(
+        return super(Field, self).validate(
             instance, self, draft_cls=draft_cls, check_formats=check_formats
         )
 
     def validation_errors(self, instance, draft_cls=None, check_formats=False):
-        return super().validation_errors(
+        return super(Field, self).validation_errors(
             instance, self, draft_cls=draft_cls, check_formats=check_formats
         )
 
     def __call__(self, *args, **kwargs):
-        raise NotImplementedError("Not implemented.")
+        raise NotImplementedError(u"Not implemented.")
 
     def _get_meta(self):
-        return getattr(self.__class__, "Meta", None)
+        return getattr(self.__class__, u"Meta", None)
 
     def _get_meta_attribute(self, attr):
         _meta = self._get_meta()
         return _meta and getattr(_meta, attr, None)
 
     def _get_all_supers(self):
-        return [cls for cls in self.__class__.__mro__ if cls.__name__ != "object"]
+        return [cls for cls in self.__class__.__mro__ if cls.__name__ != u"object"]
 
     def _get_allowed_fields_values(self):
         visited = []
@@ -98,7 +100,7 @@ class PrimitiveField(Field):
         data = instance.deserialize(data)
         return data
 
-    class _FromJsonDescriptor:
+    class _FromJsonDescriptor(object):
         def __get__(self, instance, owner=None):
             if not instance:
                 return owner._from_json_class
@@ -106,7 +108,7 @@ class PrimitiveField(Field):
 
     from_json = _FromJsonDescriptor()
 
-    class _AsInstanceDescriptor:
+    class _AsInstanceDescriptor(object):
         def __get__(self, instance, owner=None):
             if not instance:
                 return owner()
@@ -116,7 +118,7 @@ class PrimitiveField(Field):
 
 
 class Number(PrimitiveField):
-    _JSON_SCHEMA_TYPE = "number"
+    _JSON_SCHEMA_TYPE = u"number"
     _VALID_TYPES = (int, float)
 
     class Instance(SingleValueInstance):
@@ -135,7 +137,7 @@ class Number(PrimitiveField):
         multiple_of=None,
         use_default=None,
     ):
-        super().__init__(
+        super(Number, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -149,29 +151,29 @@ class Number(PrimitiveField):
         self.multiple_of = multiple_of
 
     def to_json_schema(self):
-        schema = super().to_json_schema()
+        schema = super(Number, self).to_json_schema()
         if self.min is not None:
             assert self.min >= 0
-            schema["minimum"] = self.min
+            schema[u"minimum"] = self.min
         elif self.exclusive_min is not None:
             assert self.exclusive_min >= 0
-            schema["exclusiveMinimum"] = self.exclusive_min
+            schema[u"exclusiveMinimum"] = self.exclusive_min
 
         if self.max is not None:
             assert self.max >= 0
-            schema["maximun"] = self.max
+            schema[u"maximun"] = self.max
         elif self.exclusive_max is not None:
             assert self.exclusive_max >= 0
-            schema["exclusiveMaximun"] = self.exclusive_max
+            schema[u"exclusiveMaximun"] = self.exclusive_max
 
         if self.multiple_of is not None:
-            schema["multipleOf"] = self.multiple_of
+            schema[u"multipleOf"] = self.multiple_of
 
         return schema
 
 
 class Integer(Number):
-    _JSON_SCHEMA_TYPE = "integer"
+    _JSON_SCHEMA_TYPE = u"integer"
     _VALID_TYPES = (int,)
 
     class Instance(SingleValueInstance):
@@ -179,12 +181,12 @@ class Integer(Number):
 
 
 class String(PrimitiveField):
-    _JSON_SCHEMA_TYPE = "string"
-    _VALID_TYPES = (str,)
+    _JSON_SCHEMA_TYPE = u"string"
+    _VALID_TYPES = (unicode,)
 
     class Instance(SingleValueInstance):
         def serialize_json():
-            return str(self._instance)
+            return unicode(self._instance)
 
     def __init__(
         self,
@@ -198,7 +200,7 @@ class String(PrimitiveField):
         blank=False,
         use_default=None,
     ):
-        super().__init__(
+        super(String, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -212,26 +214,26 @@ class String(PrimitiveField):
         self.blank = blank
 
     def to_json_schema(self):
-        schema = super().to_json_schema()
+        schema = super(String, self).to_json_schema()
         if self.min_len is not None:
             assert self.min_len >= 0
-            schema["minLength"] = self.min_len
+            schema[u"minLength"] = self.min_len
         elif self.blank is True:
-            schema["minLength"] = 0
+            schema[u"minLength"] = 0
 
         if self.max_len is not None:
             assert self.max_len >= 0
-            schema["maxLength"] = self.max_len
+            schema[u"maxLength"] = self.max_len
 
         if self.pattern is not None:
             assert pattern
-            schema["pattern"] = pattern
+            schema[u"pattern"] = pattern
 
         return schema
 
 
 class Boolean(PrimitiveField):
-    _JSON_SCHEMA_TYPE = "boolean"
+    _JSON_SCHEMA_TYPE = u"boolean"
     _VALID_TYPES = (bool,)
 
     class Instance(SingleValueInstance):
@@ -239,7 +241,7 @@ class Boolean(PrimitiveField):
 
 
 class Null(PrimitiveField):
-    _JSON_SCHEMA_TYPE = "null"
+    _JSON_SCHEMA_TYPE = u"null"
     _VALID_TYPES = (bool,)
 
     class Instance(SingleValueInstance):
@@ -248,7 +250,7 @@ class Null(PrimitiveField):
     def __init__(
         self, required=True, name=None, description=None, title=None, use_default=False
     ):
-        super().__init__(
+        super(Null, self).__init__(
             required=required, name=name, description=description, title=title,
         )
         assert isinstance(use_default, bool)
@@ -276,7 +278,7 @@ class MustInstanceField(Field):
 
 
 class Const(MustInstanceField):
-    _JSON_SCHEMA_TYPE = "const"
+    _JSON_SCHEMA_TYPE = u"const"
 
     class Instance(SingleValueInstance):
         pass
@@ -290,7 +292,7 @@ class Const(MustInstanceField):
         description=None,
         use_default=None,
     ):
-        super().__init__(
+        super(Const, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -301,7 +303,7 @@ class Const(MustInstanceField):
 
 
 class Enum(MustInstanceField):
-    _JSON_SCHEMA_TYPE = "enum"
+    _JSON_SCHEMA_TYPE = u"enum"
 
     class Instance(SingleValueInstance):
         pass
@@ -316,7 +318,7 @@ class Enum(MustInstanceField):
         use_default=None,
     ):
         assert isinstance(iterable, Iterable)
-        super().__init__(
+        super(Enum, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -330,27 +332,27 @@ class Enum(MustInstanceField):
 
 
 class Format(MustInstanceField):
-    _JSON_SCHEMA_TYPE = "format"
+    _JSON_SCHEMA_TYPE = u"format"
 
-    EMAIL = "email"
-    IDN_EMAIL = "idn-email"
-    DATE = "date"
-    DATE_TIME = "date-time"
-    HOSTNAME = "hostname"
-    IPV4 = "ipv4"
-    IPV6 = "ipv6"
-    URI = "uri"
-    URI_REFERENCE = "uri-reference"
-    IRI = "iri"
-    IRI_REFERENCE = "iri-reference"
-    UUID = "uuid"
-    JSON_POINTER = "json-poniter"
-    URI_TEMPLATE = "uri-template"
-    REGEX = "regex"
+    EMAIL = u"email"
+    IDN_EMAIL = u"idn-email"
+    DATE = u"date"
+    DATE_TIME = u"date-time"
+    HOSTNAME = u"hostname"
+    IPV4 = u"ipv4"
+    IPV6 = u"ipv6"
+    URI = u"uri"
+    URI_REFERENCE = u"uri-reference"
+    IRI = u"iri"
+    IRI_REFERENCE = u"iri-reference"
+    UUID = u"uuid"
+    JSON_POINTER = u"json-poniter"
+    URI_TEMPLATE = u"uri-template"
+    REGEX = u"regex"
 
     class Instance(SingleValueInstance):
         def serialize_json(self):
-            return str(self._instance)
+            return unicode(self._instance)
 
     def __init__(
         self,
@@ -361,7 +363,7 @@ class Format(MustInstanceField):
         description=None,
         use_default=None,
     ):
-        super().__init__(
+        super(Format, self).__init__(
             required=required,
             name=name,
             description=description,
@@ -377,16 +379,16 @@ class RootField(Field):
 
 class List(RootField):
 
-    _JSON_SCHEMA_TYPE = "array"
+    _JSON_SCHEMA_TYPE = u"array"
 
-    class Meta:
+    class Meta(object):
         additional_properties = False
 
     # TODO: override copy,  operations to return new List.Instance
     class Instance(BaseInstance):
         def __init__(self, iterable, schema):
             assert isinstance(iterable, Iterable)
-            super().__init__(schema)
+            super(List.Instance, self).__init__(schema)
             self._list = list(iterable)
 
         def serialize(self):
@@ -401,7 +403,7 @@ class List(RootField):
         def deserialize(self, data):
             _types = self.schema._types
             if isinstance(_types, list):
-                for e, obj in zip(data, _types):
+                for e, obj in izip(data, _types):
                     self._list.append(obj.from_json(e))
             else:
                 obj = _types
@@ -417,7 +419,7 @@ class List(RootField):
                     if self.is_json_serializale(e):
                         l.append(e)
                     else:
-                        l.append(str(e))
+                        l.append(unicode(e))
             return l
 
         def __getitem__(self, slice_):
@@ -436,7 +438,7 @@ class List(RootField):
             attr = getattr(self._list, name, None)
             if attr:
                 return attr
-            return super().__getattribute__(name)
+            return super(List.Instance, self).__getattribute__(name)
 
         def __add__(self, other):
             assert isinstance(other, (list, List.Instance))
@@ -451,20 +453,31 @@ class List(RootField):
 
     def __init__(
         self,
-        *types,
-        required=False,
-        name=None,
-        title=None,
-        description=None,
-        max_items=None,
-        min_items=None,
-        unique_items=False,
-        contains=None,
-        max_contains=None,
-        min_contains=None,
-        use_default=None,
+        *types, **_3to2kwargs
     ):
-        super().__init__(
+        if u'use_default' in _3to2kwargs: use_default = _3to2kwargs[u'use_default']; del _3to2kwargs[u'use_default']
+        else: use_default = None
+        if u'min_contains' in _3to2kwargs: min_contains = _3to2kwargs[u'min_contains']; del _3to2kwargs[u'min_contains']
+        else: min_contains = None
+        if u'max_contains' in _3to2kwargs: max_contains = _3to2kwargs[u'max_contains']; del _3to2kwargs[u'max_contains']
+        else: max_contains = None
+        if u'contains' in _3to2kwargs: contains = _3to2kwargs[u'contains']; del _3to2kwargs[u'contains']
+        else: contains = None
+        if u'unique_items' in _3to2kwargs: unique_items = _3to2kwargs[u'unique_items']; del _3to2kwargs[u'unique_items']
+        else: unique_items = False
+        if u'min_items' in _3to2kwargs: min_items = _3to2kwargs[u'min_items']; del _3to2kwargs[u'min_items']
+        else: min_items = None
+        if u'max_items' in _3to2kwargs: max_items = _3to2kwargs[u'max_items']; del _3to2kwargs[u'max_items']
+        else: max_items = None
+        if u'description' in _3to2kwargs: description = _3to2kwargs[u'description']; del _3to2kwargs[u'description']
+        else: description = None
+        if u'title' in _3to2kwargs: title = _3to2kwargs[u'title']; del _3to2kwargs[u'title']
+        else: title = None
+        if u'name' in _3to2kwargs: name = _3to2kwargs[u'name']; del _3to2kwargs[u'name']
+        else: name = None
+        if u'required' in _3to2kwargs: required = _3to2kwargs[u'required']; del _3to2kwargs[u'required']
+        else: required = False
+        super(List, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -495,38 +508,38 @@ class List(RootField):
         return self.__class__.Instance(iterable, schema=self)
 
     def to_json_schema(self):
-        schema = super().to_json_schema()
+        schema = super(List, self).to_json_schema()
         if isinstance(self._types, list):
             if self._types:
-                schema["items"] = []
+                schema[u"items"] = []
                 for _type in self._types:
-                    schema["items"].append(_type.to_json_schema())
+                    schema[u"items"].append(_type.to_json_schema())
         else:
-            schema["items"] = self._types.to_json_schema()
+            schema[u"items"] = self._types.to_json_schema()
 
         if self.max_items is not None:
-            schema["maxItems"] = self.max_items
+            schema[u"maxItems"] = self.max_items
         if self.min_items is not None:
-            schema["minItems"] = self.min_items
+            schema[u"minItems"] = self.min_items
 
-        schema["uniqueItems"] = self.unique_items
+        schema[u"uniqueItems"] = self.unique_items
 
-        if self._get_meta_attribute("additional_items"):
-            schema["additionalItems"] = self._get_meta_attribute("additional_items")
+        if self._get_meta_attribute(u"additional_items"):
+            schema[u"additionalItems"] = self._get_meta_attribute(u"additional_items")
 
         if self.contains is not None:
-            schema["contains"] = self.contains.to_json_schema()
+            schema[u"contains"] = self.contains.to_json_schema()
         if self.min_contains is not None:
-            schema["minContains"] = self.min_contains.to_json_schema()
+            schema[u"minContains"] = self.min_contains.to_json_schema()
         if self.max_contains is not None:
-            schema["maxContains"] = self.max_contains.to_json_schema()
+            schema[u"maxContains"] = self.max_contains.to_json_schema()
 
         return schema
 
     @classmethod
     def _confirm_json_loaded(cls, data):
-        assert isinstance(data, (bytes, list, str))
-        if isinstance(data, (str, bytes)):
+        assert isinstance(data, (unicode, list, unicode))
+        if isinstance(data, (unicode, unicode)):
             data = json.loads(data)
         return data
 
@@ -546,7 +559,7 @@ class List(RootField):
         instance.deserialize(data)
         return instance
 
-    class _FromJsonDescriptor:
+    class _FromJsonDescriptor(object):
         def __get__(self, instance, owner=None):
             if not instance:
                 return owner._from_json_class
@@ -554,7 +567,7 @@ class List(RootField):
 
     from_json = _FromJsonDescriptor()
 
-    class _AsInstanceDescriptor:
+    class _AsInstanceDescriptor(object):
         def __get__(self, instance, owner=None):
             if not instance:
                 return GenericList()
@@ -570,18 +583,18 @@ class GenericList(List):
 
 class Schema(RootField):
 
-    _JSON_SCHEMA_TYPE = "object"
+    _JSON_SCHEMA_TYPE = u"object"
 
-    class Meta:
+    class Meta(object):
         field_dependencies = []
         additional_properties = False
 
     class Instance(BaseInstance):
 
-        ignore_attributes = ("_schema", "_field_map", "_strict_check")
+        ignore_attributes = (u"_schema", u"_field_map", u"_strict_check")
 
         def __init__(self, schema, **kwargs):
-            super().__init__(schema)
+            super(Schema.Instance, self).__init__(schema)
             self._set_fields_map()
             self._validate_and_set_attrs(kwargs)
 
@@ -589,7 +602,7 @@ class Schema(RootField):
             self._field_map = dict(self.schema._get_allowed_fields_values())
 
         def _validate_and_set_attrs(self, kwargs):
-            if not self.schema._get_meta_attribute("additional_properties"):
+            if not self.schema._get_meta_attribute(u"additional_properties"):
                 self._set_by_field_map(kwargs)
             else:
                 for k, v in kwargs.items():
@@ -613,20 +626,20 @@ class Schema(RootField):
                         setattr(self, f, v)
 
         def __getitem__(self, name):
-            if isinstance(name, str):
+            if isinstance(name, unicode):
                 return getattr(self, name)
-            return super().__getitem__(name)
+            return super(List.Instance, self).__getitem__(name)
 
         def __getattr__(self, name):
             for f, obj in self._field_map.items():
-                if getattr(obj, "attr_name", None) == name:
+                if getattr(obj, u"attr_name", None) == name:
                     return getattr(self, obj.name)
             return self.__getattribute__(name)
 
         def __setitem__(self, name, value):
-            if isinstance(name, str):
+            if isinstance(name, unicode):
                 return self._validate_and_set_attrs({name: value})
-            return super().__setitem__(name, value)
+            return super(List.Instance, self).__setitem__(name, value)
 
         def serialize(self):
             data = {}
@@ -650,7 +663,7 @@ class Schema(RootField):
                     if self.is_json_serializale(v):
                         data[k] = v
                     else:
-                        data[k] = str(v)
+                        data[k] = unicode(v)
             return data
 
         def deserialize(self, data):
@@ -681,7 +694,7 @@ class Schema(RootField):
         min_properties=None,
         use_default=None,
     ):
-        super().__init__(
+        super(Schema, self).__init__(
             required=required,
             name=name,
             title=title,
@@ -693,35 +706,35 @@ class Schema(RootField):
         self.min_properties = min_properties
 
     def to_json_schema(self):
-        _schema = {"type": self._JSON_SCHEMA_TYPE, "properties": {}, "required": []}
+        _schema = {u"type": self._JSON_SCHEMA_TYPE, u"properties": {}, u"required": []}
         kclass = self.__class__
 
         #  __dict__ only refers currrent class not super chain.
         for attr_name, field_obj in self._get_allowed_fields_values():
             fname = field_obj.name if field_obj.name is not None else attr_name
-            _schema["properties"][fname] = field_obj.to_json_schema()
+            _schema[u"properties"][fname] = field_obj.to_json_schema()
             if field_obj.required:
-                _schema["required"].append(fname)
+                _schema[u"required"].append(fname)
 
         if self.max_properties is not None:
-            _schema["maxProperties"] = self.max_properties
+            _schema[u"maxProperties"] = self.max_properties
         if self.min_properties is not None:
-            _schema["minProperties"] = self.min_properties
+            _schema[u"minProperties"] = self.min_properties
 
-        _field_dependencies = self._get_meta_attribute("field_dependencies") or []
+        _field_dependencies = self._get_meta_attribute(u"field_dependencies") or []
         if _field_dependencies:
-            _schema["dependencies"] = {}
+            _schema[u"dependencies"] = {}
         for d in _field_dependencies:
-            _schema["dependencies"][d.source] = d.targets
-        _schema["additionalProperties"] = (
-            self._get_meta_attribute("additional_properties") or False
+            _schema[u"dependencies"][d.source] = d.targets
+        _schema[u"additionalProperties"] = (
+            self._get_meta_attribute(u"additional_properties") or False
         )
         return _schema
 
     @classmethod
     def _confirm_json_loaded(cls, data):
-        assert isinstance(data, (bytes, dict, str))
-        if isinstance(data, (str, bytes)):
+        assert isinstance(data, (unicode, dict, str))
+        if isinstance(data, (unicode, unicode)):
             data = json.loads(data)
         return data
 
@@ -734,7 +747,7 @@ class Schema(RootField):
         instance.deserialize(data)
         return instance
 
-    class _AsInstanceDescriptor:
+    class _AsInstanceDescriptor(object):
         def __get__(self, instance, owner=None):
             if not instance:
                 return owner()
