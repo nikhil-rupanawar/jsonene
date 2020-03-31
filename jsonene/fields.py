@@ -5,7 +5,7 @@ import json
 import inspect
 import enum
 from collections import Iterable
-
+from .util import json_loads_byteified
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
@@ -15,7 +15,7 @@ from itertools import izip
 
 # base class for all fields
 class Field(JsonSchemableMixin, ValidatorMixin):
-    _JSON_SCHEMA_TYPE = u""
+    _JSON_SCHEMA_TYPE = ""
 
     class Meta(object):
         field_dependencies = []
@@ -47,17 +47,17 @@ class Field(JsonSchemableMixin, ValidatorMixin):
         )
 
     def __call__(self, *args, **kwargs):
-        raise NotImplementedError(u"Not implemented.")
+        raise NotImplementedError("Not implemented.")
 
     def _get_meta(self):
-        return getattr(self.__class__, u"Meta", None)
+        return getattr(self.__class__, "Meta", None)
 
     def _get_meta_attribute(self, attr):
         _meta = self._get_meta()
         return _meta and getattr(_meta, attr, None)
 
     def _get_all_supers(self):
-        return [cls for cls in self.__class__.__mro__ if cls.__name__ != u"object"]
+        return [cls for cls in self.__class__.__mro__ if cls.__name__ != "object"]
 
     def _get_allowed_fields_values(self):
         visited = []
@@ -118,7 +118,7 @@ class PrimitiveField(Field):
 
 
 class Number(PrimitiveField):
-    _JSON_SCHEMA_TYPE = u"number"
+    _JSON_SCHEMA_TYPE = "number"
     _VALID_TYPES = (int, float)
 
     class Instance(SingleValueInstance):
@@ -154,26 +154,26 @@ class Number(PrimitiveField):
         schema = super(Number, self).to_json_schema()
         if self.min is not None:
             assert self.min >= 0
-            schema[u"minimum"] = self.min
+            schema["minimum"] = self.min
         elif self.exclusive_min is not None:
             assert self.exclusive_min >= 0
-            schema[u"exclusiveMinimum"] = self.exclusive_min
+            schema["exclusiveMinimum"] = self.exclusive_min
 
         if self.max is not None:
             assert self.max >= 0
-            schema[u"maximun"] = self.max
+            schema["maximun"] = self.max
         elif self.exclusive_max is not None:
             assert self.exclusive_max >= 0
-            schema[u"exclusiveMaximun"] = self.exclusive_max
+            schema["exclusiveMaximun"] = self.exclusive_max
 
         if self.multiple_of is not None:
-            schema[u"multipleOf"] = self.multiple_of
+            schema["multipleOf"] = self.multiple_of
 
         return schema
 
 
 class Integer(Number):
-    _JSON_SCHEMA_TYPE = u"integer"
+    _JSON_SCHEMA_TYPE = "integer"
     _VALID_TYPES = (int,)
 
     class Instance(SingleValueInstance):
@@ -181,7 +181,7 @@ class Integer(Number):
 
 
 class String(PrimitiveField):
-    _JSON_SCHEMA_TYPE = u"string"
+    _JSON_SCHEMA_TYPE = "string"
     _VALID_TYPES = (unicode,)
 
     class Instance(SingleValueInstance):
@@ -217,23 +217,23 @@ class String(PrimitiveField):
         schema = super(String, self).to_json_schema()
         if self.min_len is not None:
             assert self.min_len >= 0
-            schema[u"minLength"] = self.min_len
+            schema["minLength"] = self.min_len
         elif self.blank is True:
-            schema[u"minLength"] = 0
+            schema["minLength"] = 0
 
         if self.max_len is not None:
             assert self.max_len >= 0
-            schema[u"maxLength"] = self.max_len
+            schema["maxLength"] = self.max_len
 
         if self.pattern is not None:
             assert pattern
-            schema[u"pattern"] = pattern
+            schema["pattern"] = pattern
 
         return schema
 
 
 class Boolean(PrimitiveField):
-    _JSON_SCHEMA_TYPE = u"boolean"
+    _JSON_SCHEMA_TYPE = "boolean"
     _VALID_TYPES = (bool,)
 
     class Instance(SingleValueInstance):
@@ -241,7 +241,7 @@ class Boolean(PrimitiveField):
 
 
 class Null(PrimitiveField):
-    _JSON_SCHEMA_TYPE = u"null"
+    _JSON_SCHEMA_TYPE = "null"
     _VALID_TYPES = (bool,)
 
     class Instance(SingleValueInstance):
@@ -278,7 +278,7 @@ class MustInstanceField(Field):
 
 
 class Const(MustInstanceField):
-    _JSON_SCHEMA_TYPE = u"const"
+    _JSON_SCHEMA_TYPE = "const"
 
     class Instance(SingleValueInstance):
         pass
@@ -303,7 +303,7 @@ class Const(MustInstanceField):
 
 
 class Enum(MustInstanceField):
-    _JSON_SCHEMA_TYPE = u"enum"
+    _JSON_SCHEMA_TYPE = "enum"
 
     class Instance(SingleValueInstance):
         pass
@@ -332,23 +332,23 @@ class Enum(MustInstanceField):
 
 
 class Format(MustInstanceField):
-    _JSON_SCHEMA_TYPE = u"format"
+    _JSON_SCHEMA_TYPE = "format"
 
-    EMAIL = u"email"
-    IDN_EMAIL = u"idn-email"
-    DATE = u"date"
-    DATE_TIME = u"date-time"
-    HOSTNAME = u"hostname"
-    IPV4 = u"ipv4"
-    IPV6 = u"ipv6"
-    URI = u"uri"
-    URI_REFERENCE = u"uri-reference"
-    IRI = u"iri"
-    IRI_REFERENCE = u"iri-reference"
-    UUID = u"uuid"
-    JSON_POINTER = u"json-poniter"
-    URI_TEMPLATE = u"uri-template"
-    REGEX = u"regex"
+    EMAIL = "email"
+    IDN_EMAIL = "idn-email"
+    DATE = "date"
+    DATE_TIME = "date-time"
+    HOSTNAME = "hostname"
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+    URI = "uri"
+    URI_REFERENCE = "uri-reference"
+    IRI = "iri"
+    IRI_REFERENCE = "iri-reference"
+    UUID = "uuid"
+    JSON_POINTER = "json-poniter"
+    URI_TEMPLATE = "uri-template"
+    REGEX = "regex"
 
     class Instance(SingleValueInstance):
         def serialize_json(self):
@@ -379,7 +379,7 @@ class RootField(Field):
 
 class List(RootField):
 
-    _JSON_SCHEMA_TYPE = u"array"
+    _JSON_SCHEMA_TYPE = "array"
 
     class Meta(object):
         additional_properties = False
@@ -455,27 +455,27 @@ class List(RootField):
         self,
         *types, **_3to2kwargs
     ):
-        if u'use_default' in _3to2kwargs: use_default = _3to2kwargs[u'use_default']; del _3to2kwargs[u'use_default']
+        if 'use_default' in _3to2kwargs: use_default = _3to2kwargs['use_default']; del _3to2kwargs['use_default']
         else: use_default = None
-        if u'min_contains' in _3to2kwargs: min_contains = _3to2kwargs[u'min_contains']; del _3to2kwargs[u'min_contains']
+        if 'min_contains' in _3to2kwargs: min_contains = _3to2kwargs['min_contains']; del _3to2kwargs['min_contains']
         else: min_contains = None
-        if u'max_contains' in _3to2kwargs: max_contains = _3to2kwargs[u'max_contains']; del _3to2kwargs[u'max_contains']
+        if 'max_contains' in _3to2kwargs: max_contains = _3to2kwargs['max_contains']; del _3to2kwargs['max_contains']
         else: max_contains = None
-        if u'contains' in _3to2kwargs: contains = _3to2kwargs[u'contains']; del _3to2kwargs[u'contains']
+        if 'contains' in _3to2kwargs: contains = _3to2kwargs['contains']; del _3to2kwargs['contains']
         else: contains = None
-        if u'unique_items' in _3to2kwargs: unique_items = _3to2kwargs[u'unique_items']; del _3to2kwargs[u'unique_items']
+        if 'unique_items' in _3to2kwargs: unique_items = _3to2kwargs['unique_items']; del _3to2kwargs['unique_items']
         else: unique_items = False
-        if u'min_items' in _3to2kwargs: min_items = _3to2kwargs[u'min_items']; del _3to2kwargs[u'min_items']
+        if 'min_items' in _3to2kwargs: min_items = _3to2kwargs['min_items']; del _3to2kwargs['min_items']
         else: min_items = None
-        if u'max_items' in _3to2kwargs: max_items = _3to2kwargs[u'max_items']; del _3to2kwargs[u'max_items']
+        if 'max_items' in _3to2kwargs: max_items = _3to2kwargs['max_items']; del _3to2kwargs['max_items']
         else: max_items = None
-        if u'description' in _3to2kwargs: description = _3to2kwargs[u'description']; del _3to2kwargs[u'description']
+        if 'description' in _3to2kwargs: description = _3to2kwargs['description']; del _3to2kwargs['description']
         else: description = None
-        if u'title' in _3to2kwargs: title = _3to2kwargs[u'title']; del _3to2kwargs[u'title']
+        if 'title' in _3to2kwargs: title = _3to2kwargs['title']; del _3to2kwargs['title']
         else: title = None
-        if u'name' in _3to2kwargs: name = _3to2kwargs[u'name']; del _3to2kwargs[u'name']
+        if 'name' in _3to2kwargs: name = _3to2kwargs['name']; del _3to2kwargs['name']
         else: name = None
-        if u'required' in _3to2kwargs: required = _3to2kwargs[u'required']; del _3to2kwargs[u'required']
+        if 'required' in _3to2kwargs: required = _3to2kwargs['required']; del _3to2kwargs['required']
         else: required = False
         super(List, self).__init__(
             required=required,
@@ -511,36 +511,36 @@ class List(RootField):
         schema = super(List, self).to_json_schema()
         if isinstance(self._types, list):
             if self._types:
-                schema[u"items"] = []
+                schema["items"] = []
                 for _type in self._types:
-                    schema[u"items"].append(_type.to_json_schema())
+                    schema["items"].append(_type.to_json_schema())
         else:
-            schema[u"items"] = self._types.to_json_schema()
+            schema["items"] = self._types.to_json_schema()
 
         if self.max_items is not None:
-            schema[u"maxItems"] = self.max_items
+            schema["maxItems"] = self.max_items
         if self.min_items is not None:
-            schema[u"minItems"] = self.min_items
+            schema["minItems"] = self.min_items
 
-        schema[u"uniqueItems"] = self.unique_items
+        schema["uniqueItems"] = self.unique_items
 
-        if self._get_meta_attribute(u"additional_items"):
-            schema[u"additionalItems"] = self._get_meta_attribute(u"additional_items")
+        if self._get_meta_attribute("additional_items"):
+            schema["additionalItems"] = self._get_meta_attribute("additional_items")
 
         if self.contains is not None:
-            schema[u"contains"] = self.contains.to_json_schema()
+            schema["contains"] = self.contains.to_json_schema()
         if self.min_contains is not None:
-            schema[u"minContains"] = self.min_contains.to_json_schema()
+            schema["minContains"] = self.min_contains.to_json_schema()
         if self.max_contains is not None:
-            schema[u"maxContains"] = self.max_contains.to_json_schema()
+            schema["maxContains"] = self.max_contains.to_json_schema()
 
         return schema
 
     @classmethod
     def _confirm_json_loaded(cls, data):
-        assert isinstance(data, (unicode, list, unicode))
-        if isinstance(data, (unicode, unicode)):
-            data = json.loads(data)
+        assert isinstance(data, (unicode, list, str))
+        if isinstance(data, (unicode, str)):
+            data = json_loads_byteified(data)
         return data
 
     @classmethod
@@ -583,7 +583,7 @@ class GenericList(List):
 
 class Schema(RootField):
 
-    _JSON_SCHEMA_TYPE = u"object"
+    _JSON_SCHEMA_TYPE = "object"
 
     class Meta(object):
         field_dependencies = []
@@ -591,7 +591,7 @@ class Schema(RootField):
 
     class Instance(BaseInstance):
 
-        ignore_attributes = (u"_schema", u"_field_map", u"_strict_check")
+        ignore_attributes = ("_schema", "_field_map", "_strict_check")
 
         def __init__(self, schema, **kwargs):
             super(Schema.Instance, self).__init__(schema)
@@ -602,7 +602,7 @@ class Schema(RootField):
             self._field_map = dict(self.schema._get_allowed_fields_values())
 
         def _validate_and_set_attrs(self, kwargs):
-            if not self.schema._get_meta_attribute(u"additional_properties"):
+            if not self.schema._get_meta_attribute("additional_properties"):
                 self._set_by_field_map(kwargs)
             else:
                 for k, v in kwargs.items():
@@ -628,18 +628,18 @@ class Schema(RootField):
         def __getitem__(self, name):
             if isinstance(name, unicode):
                 return getattr(self, name)
-            return super(List.Instance, self).__getitem__(name)
+            return object.__getitem__(self, name)
 
         def __getattr__(self, name):
             for f, obj in self._field_map.items():
-                if getattr(obj, u"attr_name", None) == name:
+                if getattr(obj, "attr_name", None) == name:
                     return getattr(self, obj.name)
             return self.__getattribute__(name)
 
         def __setitem__(self, name, value):
             if isinstance(name, unicode):
                 return self._validate_and_set_attrs({name: value})
-            return super(List.Instance, self).__setitem__(name, value)
+            return super(Schema.Instance, self).__setitem__(name, value)
 
         def serialize(self):
             data = {}
@@ -706,36 +706,36 @@ class Schema(RootField):
         self.min_properties = min_properties
 
     def to_json_schema(self):
-        _schema = {u"type": self._JSON_SCHEMA_TYPE, u"properties": {}, u"required": []}
+        _schema = {"type": self._JSON_SCHEMA_TYPE, "properties": {}, "required": []}
         kclass = self.__class__
 
         #  __dict__ only refers currrent class not super chain.
         for attr_name, field_obj in self._get_allowed_fields_values():
             fname = field_obj.name if field_obj.name is not None else attr_name
-            _schema[u"properties"][fname] = field_obj.to_json_schema()
+            _schema["properties"][fname] = field_obj.to_json_schema()
             if field_obj.required:
-                _schema[u"required"].append(fname)
+                _schema["required"].append(fname)
 
         if self.max_properties is not None:
-            _schema[u"maxProperties"] = self.max_properties
+            _schema["maxProperties"] = self.max_properties
         if self.min_properties is not None:
-            _schema[u"minProperties"] = self.min_properties
+            _schema["minProperties"] = self.min_properties
 
-        _field_dependencies = self._get_meta_attribute(u"field_dependencies") or []
+        _field_dependencies = self._get_meta_attribute("field_dependencies") or []
         if _field_dependencies:
-            _schema[u"dependencies"] = {}
+            _schema["dependencies"] = {}
         for d in _field_dependencies:
-            _schema[u"dependencies"][d.source] = d.targets
-        _schema[u"additionalProperties"] = (
-            self._get_meta_attribute(u"additional_properties") or False
+            _schema["dependencies"][d.source] = d.targets
+        _schema["additionalProperties"] = (
+            self._get_meta_attribute("additional_properties") or False
         )
         return _schema
 
     @classmethod
     def _confirm_json_loaded(cls, data):
         assert isinstance(data, (unicode, dict, str))
-        if isinstance(data, (unicode, unicode)):
-            data = json.loads(data)
+        if isinstance(data, (unicode, str)):
+            data = json_loads_byteified(data)
         return data
 
     @classmethod

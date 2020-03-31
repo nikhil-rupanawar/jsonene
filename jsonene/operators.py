@@ -52,19 +52,19 @@ class Of(OperatorField):
 
 
 class AnyOf(Of):
-    operator = u"anyOf"
+    operator = "anyOf"
 
 
 class AllOf(Of):
-    operator = u"allOf"
+    operator = "allOf"
 
 
 class OneOf(Of):
-    operator = u"oneOf"
+    operator = "oneOf"
 
 
 class Not(Of):
-    operator = u"not"
+    operator = "not"
 
     def __init__(self, _type, required=True, name=None, title=None, description=None):
         # No nested

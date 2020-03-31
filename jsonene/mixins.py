@@ -49,7 +49,7 @@ class ValidatorMixin(object):
                 cls=draft_cls,
                 format_checker=jsonschema.draft7_format_checker,
             )
-
+ 
         return jsonschema.validate(instance=instance, schema=schema, cls=draft_cls,)
 
     def validation_errors(self, instance, schema, draft_cls=None, check_formats=False):
@@ -68,12 +68,12 @@ class ValidatorMixin(object):
 
 class JsonSchemableMixin(object):
 
-    _JSON_SCHEMA_TYPE = u"object"
+    _JSON_SCHEMA_TYPE = "object"
 
     def to_json_schema(self, title=None, description=None):
-        schema = {u"type": self._JSON_SCHEMA_TYPE}
+        schema = {"type": self._JSON_SCHEMA_TYPE}
         if title is not None:
-            schema[u"title"] = title
+            schema["title"] = title
         if description is not None:
-            schema[u"description"] = description
+            schema["description"] = description
         return schema

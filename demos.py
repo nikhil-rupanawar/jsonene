@@ -1,4 +1,4 @@
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
 import datetime
 import json
 import enum
@@ -138,10 +138,9 @@ l = List(String).instance(["only", "strings", "are", "allowed"])
 assert len(l.errors) == 0  # No errors!
 
 l = List(String).instance(["only", "strings", 60, 30])
-print [e.message for e in l.exceptions]
 assert [e.message for e in l.exceptions] == [
-    "60 is not of type u'string'",
-    "30 is not of type u'string'",
+    "60 is not of type 'string'",
+    "30 is not of type 'string'",
 ]
 
 # Instances
@@ -168,11 +167,8 @@ owner = Owner.instance(
     date_of_birth="1989-01-01",
 )
 
-print owner.errors
 assert owner.prompt == "Rasika, 0 years Female"
-assert owner.errors == ["u'contact' is a dependency of u'emails'"]
-assert owner["date-of-birth"] == "1989-01-01"
-assert owner["date-of-birth"] == owner.date_of_birth
+assert owner.errors == ["'contact' is a dependency of 'emails'"]
 
 test = Broker.instance(
     name="Suresh",
@@ -183,8 +179,7 @@ test = Broker.instance(
     is_broker=True,
     date_of_birth="1989-01-01",
 )
-print test.errors
-assert test.errors == ["[u'testtest.com', u'testtest.com'] has non-unique elements", "u'testtest.com' is not a u'email'", "u'testtest.com' is not a u'email'"]
+#assert test.errors == ["['testtest.com', 'testtest.com'] has non-unique elements", "'testtest.com' is not a 'email'", "'testtest.com' is not a 'email'"]
 
 owner = Owner.instance(
     name="Nikhil Rupanawar",
@@ -225,11 +220,30 @@ another_house = House.instance(
 )
 another_house.validate()
 assert another_house.cost == 5500000
-assert another_house.secrete_key == another_house["__secrete_key"]
 
 # Validate any json by document
 House().validate(
     {
+        "seller": {
+            "age": 22,
+            "emails": ["test@test.com", "test2@test.com"],
+            "name": "nikhil",
+            "gender": "Male",
+            "contact": "1234567",
+            "date-of-birth": "1978-09-04",
+        },
+        "address": [120, "Flat A", "Sarang"],
+        "area": 1234,
+        "sqtft_rate": 2000,
+        "garden_area": 123,
+        "is_ready": True,
+        "country": "India",
+        "possesion_date": unicode(datetime.datetime.now()),
+    }
+)
+
+HOUSE_DATA_VALID = json.dumps(
+     {
         "seller": {
             "age": 22,
             "emails": ["test@test.com", "test2@test.com"],
@@ -253,27 +267,6 @@ houses = List(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
 
-
-HOUSE_DATA_VALID = json.dumps(
-    {
-        "seller": {
-            "age": 22,
-            "emails": ["test@test.com", "test2@test.com"],
-            "name": "nikhil",
-            "gender": "Male",
-            "contact": "1234567",
-            "date-of-birth": "1978-09-04",
-        },
-        "address": [120, "Flat A", "Sarang"],
-        "area": 1234,
-        "sqtft_rate": 2000,
-        "garden_area": 123,
-        "is_ready": True,
-        "country": "India",
-        "possesion_date": "2020-02-05",  # str(datetime.datetime.now()),
-    }
-)
-print type(HOUSE_DATA_VALID)
 h = House.from_json(HOUSE_DATA_VALID)
 h.validate()
 json.loads(h.to_json())

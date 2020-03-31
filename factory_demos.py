@@ -41,7 +41,7 @@ class BrokerFactory(PersonFactory):
 
 class AddressFactory(ListSchemaFactory):
     house_no = fuzzy.FuzzyInteger(low=1, high=100)
-    street_address = fuzzy.FuzzyText(suffix=u" road")
+    street_address = fuzzy.FuzzyText(suffix=" road")
     area = fuzzy.FuzzyText()
 
     class Meta(object):
@@ -53,7 +53,7 @@ class HouseFactory(SchemaFactory):
     address = SubFactory(AddressFactory)
     is_ready = fuzzy.FuzzyChoice([True, False])
     area = fuzzy.FuzzyFloat(low=400, high=3000, precision=2)
-    country = u"India"
+    country = "India"
     garden_area = fuzzy.FuzzyFloat(low=400, high=3000, precision=2)
     sqtft_rate = fuzzy.FuzzyFloat(low=0, high=50000, precision=2)
     possesion_date = fuzzy.FuzzyDateTime(st_date, end_dt=end_date)
@@ -68,4 +68,4 @@ assert isinstance(house.seller, Schema.Instance)
 
 house2 = HouseFactory.create()
 del house2.seller
-assert house2.errors == [u"'seller' is a required property"]
+assert house2.errors == ["'seller' is a required property"]
