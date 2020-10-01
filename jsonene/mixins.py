@@ -69,8 +69,9 @@ class JsonSchemableMixin:
 
     _JSON_SCHEMA_TYPE = "object"
 
-    def to_json_schema(self, title=None, description=None):
-        schema = {"type": self._JSON_SCHEMA_TYPE}
+    @classmethod
+    def to_json_schema(cls, title=None, description=None):
+        schema = {"type": cls._JSON_SCHEMA_TYPE}
         if title is not None:
             schema["title"] = title
         if description is not None:

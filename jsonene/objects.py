@@ -3,20 +3,10 @@ from .mixins import InstanceMixin
 
 
 class BaseInstance(InstanceMixin):
-    def __init__(self, schema):
-        self._schema = schema
 
     @property
     def schema_json(self):
-        return self.schema.to_json_schema()
-
-    @property
-    def schema(self):
-        return self._schema
-
-    @schema.setter
-    def schema(self, schema):
-        self._schema = schema
+        return self.to_json_schema()
 
     @property
     def errors(self):
@@ -30,12 +20,6 @@ class BaseInstance(InstanceMixin):
         return super().validate(
             self.schema, raise_exception=raise_exception, check_formats=check_formats
         )
-
-    def __repr__(self):
-        rpr = super().__repr__()
-        if self.schema:
-            return f"[{rpr} of <Schema {__name__}.{self.schema.__class__.__name__}>]"
-        return rpr
 
 
 class SingleValueInstance(BaseInstance):
