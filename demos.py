@@ -4,14 +4,12 @@ import enum
 from jsonene.fields import (
     Boolean,
     List,
-    GenericList,
     Null,
     Const,
     Enum,
     Number,
     Integer,
     Schema,
-    GenericSchema,
     String,
     Format,
 )
@@ -28,14 +26,14 @@ class Gender(enum.Enum):
 
 # Define a Schema
 class Person(Schema):
-    name = String(min_len=3, title="Your full name")
-    gender = Enum(Gender)  # Any iterable
-    emails = List(
-        Format(Format.EMAIL), unique_items=True, description="List of unique email ids"
+    name = String.asField(min_len=3, title="Your full name")
+    gender = Enum.asField(Gender)  # Any iterable
+    emails = List.asField(
+        Format.asField(Format.EMAIL), unique_items=True, description="List of unique email ids"
     )
-    contact = String(required=False)
-    age = Integer(required=False, use_default=0)
-    date_of_birth = Format(Format.DATE, name="date-of-birth")  # non python names
+    contact = String.asField(required=False)
+    age = Integer.asField(required=False, use_default=0)
+    date_of_birth = Format.asField(Format.DATE, name="date-of-birth")  # non python names
 
     class Instance(Schema.Instance):
         @property
@@ -51,11 +49,11 @@ class Person(Schema):
 
 
 class Male(Person):
-    gender = Const(Gender.MALE, use_default=Gender.MALE)
+    gender = Const.asField(Gender.MALE, use_default=Gender.MALE)
 
 
 class Female(Person):
-    gender = Const(Gender.FEMALE, use_default=Gender.FEMALE)
+    gender = Const.asField(Gender.FEMALE, use_default=Gender.FEMALE)
 
 
 class Owner(Person):
@@ -63,8 +61,8 @@ class Owner(Person):
 
 
 class Broker(Person):
-    brokerage = Integer()  # additional properity
-    is_broker = Const(True)
+    brokerage = Integer.asField()  # additional properity
+    is_broker = Const.asField(True)
 
     class Meta(Person.Meta):
         field_dependencies = [
@@ -76,21 +74,20 @@ class Broker(Person):
 # Nested schemas
 class House(Schema):
     seller = AnyOf(Owner, Broker)  # accepts any of owner or broken
-    address = List(Integer, String, String)  # accept list in specific type order.
+    address = List.asField(Integer, String, String)  # accept list in specific type order.
     is_ready = Boolean()
-    area = Number()
-    country = Const("India")
-    garden_area = Number(required=False, use_default=0)
-    sqtft_rate = Number(required=False, use_default=0)
-    secrete_key = Number(required=False, name="__secrete_key")
-    possesion_date = Format(Format.DATE)
-    # Extend instance class and add properties
-    class Instance(Schema.Instance):
-        @property
-        def cost(self):
-            # Safety: fields with required=False should be checked before access.
-            # Optionaly you can provide default value.
-            return self.sqtft_rate * self.area
+    area = Number.asField()
+    country = Const.asField("India")
+    garden_area = Number.asField(required=False, use_default=0)
+    sqtft_rate = Number.asField(required=False, use_default=0)
+    secrete_key = Number.asField(required=False, name="__secrete_key")
+    possesion_date = Format.asField(Format.DATE)
+
+    @property
+    def cost(self):
+        # Safety: fields with required=False should be checked before access.
+        # Optionaly you can provide default value.
+        return self.sqtft_rate * self.area
 
     # Provide custom meta
     class Meta:
@@ -102,18 +99,18 @@ class House(Schema):
         ]
 
 
-Const(2).instance(2).validate()  # won't raise error
+Const.asField(2).instance(2).validate()  # won't raise error
 
 try:
-    Const(2).instance(3).validate()  # raises error
+    Const.asField(2).instance(3).validate()  # raises error
 except ValidationError:
     assert True
 
-assert Enum([1, 2, 3]).instance(3).errors == []  # no error
+assert Enum.asField([1, 2, 3]).instance(3).errors == []  # no error
 
 # Raises error
 try:
-    Enum([1, 2, "Three"])(5).validate()
+    Enum.asField([1, 2, "Three"])(5).validate()
 except ValidationError:
     assert True
 
@@ -129,10 +126,10 @@ l[2] = 100
 l.validate()  # No errors!
 
 # List accepting only string type
-l = List(String).instance(["only", "strings", "are", "allowed"])
+l = List.asField(String).instance(["only", "strings", "are", "allowed"])
 assert len(l.errors) == 0  # No errors!
 
-l = List(String).instance(["only", "strings", 60, 30])
+l = List.asField(String).instance(["only", "strings", 60, 30])
 assert [e.message for e in l.exceptions] == [
     "60 is not of type 'string'",
     "30 is not of type 'string'",
@@ -246,7 +243,7 @@ House().validate(
 )
 
 # generate json
-houses = List(House).instance([house, another_house])
+houses = List.asField(House).instance([house, another_house])
 houses.validate()
 houses.to_json()
 

@@ -17,7 +17,11 @@ setup(
     author_email="conikhil@gmail.com",
     license="MIT",
     keywords=["json", "validation", "schema"],
-    install_requires=["jsonschema>=3.2.0"],
+    install_requires=[
+        "jsonschema>=3.2.0",
+        "cached_property>=1.5.2",
+        "strict-rfc3339",
+    ],
     python_requires=">=3.6",
     long_description=long_description,
     long_description_content_type="text/markdown",

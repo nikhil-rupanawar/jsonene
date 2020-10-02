@@ -4,7 +4,7 @@ import json
 import inspect
 import enum
 from collections.abc import Iterable
-
+from cached_property import cached_property
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
@@ -14,38 +14,53 @@ from .objects import BaseInstance, SingleValueInstance
 
 # base class for all fields
 class BaseField:
-
-
     @classmethod
     def asField(cls, *args, **kwargs):
-        return cls.Schema(*args, **kwargs)
+        return cls.Schema(cls, *args, **kwargs)
+
+    def validate(self):
+        return self.asField().validate_instance(self)
+
+    def validation_errors(self):
+        return list(self.asField().validation_errors(self))
 
     class Schema:
         JSON_SCHEMA_TYPE = "object"
         def __init__(
             self,
+            field_class,
             required=True,
             name=None,
             description=None,
             title=None,
             use_default=None,
+            null=False
         ):
+            self.field_class = field_class
             self.required = required
             self.name = name
             self.description = description
             self.title = title
             self.use_default = self._validate_use_default(use_default)
+            self.null = null
 
         def to_json_schema(self):
-            schema = {"type": self.JSON_SCHEMA_TYPE}
+            if self.null:
+                schema = {"type": [self.JSON_SCHEMA_TYPE, 'null']}
+            else:
+                schema = {"type": self.JSON_SCHEMA_TYPE}
             if self.title is not None:
                schema["title"] = self.title
             if self.description is not None:
                 schema["description"] = self.description
             return schema
 
-        def validate_instance(self, instance, schema=None, draft_cls=None, check_formats=False):
-            schema = schema or self.to_json_schema()
+        @cached_property
+        def json_schema(self):
+            return self.to_json_schema()
+
+        def validate_instance(self, instance, draft_cls=None, check_formats=False):
+            schema = self.json_schema
             if isinstance(instance, BaseField):
                 instance = instance.serialize()
             if check_formats:
@@ -63,8 +78,8 @@ class BaseField:
                 cls=draft_cls
             )
 
-        def validation_errors(self, instance, schema=None, draft_cls=None, check_formats=False):
-            schema = schema or self.to_json_schema()
+        def validation_errors(self, instance, draft_cls=None, check_formats=False):
+            schema = self.json_schema
             if isinstance(instance, BaseField):
                 instance = instance.serialize()
             if not draft_cls:
@@ -111,7 +126,6 @@ class BaseField:
 
 
 class SingleValueField(BaseField):
-
     def __init__(self, value):
         self._value = value
 
@@ -130,30 +144,22 @@ class PrimitiveBaseField(SingleValueField):
     pass
 
 
-class Number(int, PrimitiveBaseField):
-
+class Number(PrimitiveBaseField):
     class Schema(PrimitiveBaseField.Schema):
         JSON_SCHEMA_TYPE = "number"
-
         def __init__(
             self,
-            required=True,
-            name=None,
-            title=None,
-            description=None,
+            *args,
             min=None,
             max=None,
             exclusive_max=None,
             exclusive_min=None,
             multiple_of=None,
-            use_default=None,
+            **kwargs,
         ):
             super().__init__(
-                 required=required,
-                 name=name,
-                 title=title,
-                 description=description,
-                 use_default=use_default,
+                *args,
+                **kwargs,
             )
             self.min = min
             self.max = max
@@ -180,7 +186,7 @@ class Number(int, PrimitiveBaseField):
             return schema
 
 
-class Integer(Number):
+class Integer(int, Number):
     class Schema(PrimitiveBaseField.Schema):
         JSON_SCHEMA_TYPE = "integer"
 
@@ -191,22 +197,16 @@ class String(str, PrimitiveBaseField):
 
         def __init__(
             self,
-            required=True,
-            name=None,
-            title=None,
-            description=None,
+            *args,
             min_len=None,
             max_len=None,
             pattern=None,
             blank=False,
-            use_default=None,
+            **kwargs,
         ):
             super().__init__(
-                required=required,
-                name=name,
-                title=title,
-                description=description,
-                use_default=use_default,
+                *args,
+                **kwargs,
             )
             self.min_len = min_len
             self.max_len = max_len
@@ -226,6 +226,9 @@ class String(str, PrimitiveBaseField):
             if self.pattern is not None:
                 assert pattern
                 schema["pattern"] = pattern
+            if self.blank is False:
+                if not self.min_len:
+                    schema["minLength"] = 1
             return schema
 
 
@@ -238,29 +241,11 @@ class Null(PrimitiveBaseField):
     class Schema(PrimitiveBaseField.Schema):
         JSON_SCHEMA_TYPE = "null"
 
-        def __init__(
-            self,
-            required=True,
-            name=None,
-            description=None,
-            title=None,
-            use_default=False,
-        ):
-            super().__init__(
-                required=required,
-                name=name,
-                description=description,
-                title=title
-            )
-            assert isinstance(use_default, bool)
-            if use_default:
-                self.use_default = True
-
 
 class SchameValueBaseField(SingleValueField):
     class Schema(SingleValueField.Schema):
-        def __init__(self, match_value, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self, field_class, match_value, *args, **kwargs):
+            super().__init__(field_class, *args, **kwargs)
             self.match_value = match_value
 
         def to_json_schema(self):
@@ -282,24 +267,18 @@ class Enum(SchameValueBaseField):
         JSON_SCHEMA_TYPE = "enum"
         def __init__(
             self,
+            *args,
             iterable,
-            required=True,
-            name=None,
-            title=None,
-            description=None,
-            use_default=None,
+            **kwargs,
         ):
             assert isinstance(iterable, Iterable)
             super().__init__(
-                required=required,
-                name=name,
-                title=title,
-                description=description,
-                use_default=use_default,
+                *args,
+                **kwargs,
             )
             if isinstance(iterable, enum.EnumMeta):
                 iterable = [e.value for e in iterable]
-            self.match_value = iterable
+            self.match_value = list(iterable)
 
 
 class Format(String):
@@ -327,11 +306,6 @@ class RootBaseField(BaseField):
 
 
 class List(list, RootBaseField):
-
-    class Schema(BaseField.Schema):
-        JSON_SCHEMA_TYPE = "array"
-        additional_properties = False
-
     def serialize(self):
         l = []
         for e in self:
@@ -341,54 +315,25 @@ class List(list, RootBaseField):
                 l.append(e.serialize())
         return l
 
-    def deserialize(self, data):
-        _types = self.Schema.types
-        if isinstance(_types, list):
-            for e, obj in zip(data, _types):
-                self.append(obj.from_json(e))
-        else:
-            obj = _types
-            for e in data:
-                self.append(obj.from_json(e))
-
-    def serialize_json(self):
-        l = []
-        for e in self:
-            if isinstance(e, BaseField):
-                l.append(e.serialize_json())
-            else:
-                if self.is_json_serializale(e):
-                    l.append(e)
-                else:
-                    l.append(str(e))
-        return l
-
     class Schema(BaseField.Schema):
         JSON_SCHEMA_TYPE = "array"
         def __init__(
             self,
+            field_class,
             *types,
-            required=False,
-            name=None,
-            title=None,
-            description=None,
             max_items=None,
             min_items=None,
             unique_items=False,
             contains=None,
             max_contains=None,
             min_contains=None,
-            use_default=None,
             additional_items=False,
+            **kwargs,
         ):
             super().__init__(
-                required=required,
-                name=name,
-                title=title,
-                description=description,
-                use_default=use_default,
+                field_class,
+                **kwargs,
             )
-             
             _types = []
             for _type in types:
                 if not isinstance(_type, BaseField.Schema):
@@ -452,73 +397,43 @@ class List(list, RootBaseField):
 
 
 class SchemaTypeMeta(type):
-    def __init__(self, *args, **kwargs):
-        print( *args, **kwargs)
-        super().__init__(*args, **kwargs)
+    def __new__(cls, name, bases, dct):
+        kclass = super().__new__(cls, name, bases, dct)
+        kclass._meta = kclass.Meta()
+        kclass._meta.allowed_fields_map = dict(cls._get_allowed_fields_values(kclass))
+        return kclass
+
+    @classmethod
+    def _get_all_supers(cls, kclass):
+        return [cls for cls in kclass.__mro__ if issubclass(cls, BaseField)]
+
+    @classmethod
+    def _get_allowed_fields_values(cls, kclass):
+        visited = set()
+        for sup in cls._get_all_supers(kclass):
+            for attr_name, field_obj in sup.__dict__.items():
+                if isinstance(field_obj, BaseField.Schema) and attr_name not in visited:
+                    yield attr_name, field_obj
+                    visited.add(attr_name)
 
 
 class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
+ 
     class Meta:
-        pass
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(**kwargs)
-        self._set_fields_map()
-    def _set_fields_map(self):
-        self._field_map = dict(self.schema._get_allowed_fields_values())
+        field_dependencies = []
+        additional_properties = False
 
-    def _validate_and_set_attrs(self, kwargs):
-        if not self.schema._get_meta_attribute("additional_properties"):
-            self._set_by_field_map(kwargs)
-        else:
-            for k, v in kwargs.items():
-                setattr(self, k, v)
-
-    def _set_by_field_map(self, kwargs):
-        for f, obj in self._field_map.items():
-            is_missing = False
-            try:
-                v = kwargs.pop(f)
-            except KeyError:
-                if obj.use_default is not None:
-                    v = obj.use_default
-                else:
-                    is_missing = True
-            if is_missing is False:
-                if obj.name:
-                    obj.attr_name = f
-                    setattr(self, (obj.name or f), v)
-                else:
-                    setattr(self, f, v)
-    """
     def serialize(self):
         data = {}
-        for k, v in vars(self).items():
-            if k in self.ignore_attributes:
-                continue
+        for k, v in self.items():
             if isinstance(v, BaseField):
                 data[k] = v.serialize()
             else:
                 data[k] = v
         return data
 
-    def serialize_json(self):
-        data = {}
-        for k, v in vars(self).items():
-            if k in self.ignore_attributes:
-                continue
-            if isinstance(v, InstanceMixin):
-                data[k] = v.serialize_json()
-            else:
-                if self.is_json_serializale(v):
-                    data[k] = v
-                else:
-                    data[k] = str(v)
-        return data
-
     def deserialize(self, data):
-        self._set_fields_map()
-        for fname, obj in self._field_map.items():
+        for fname, obj in self._meta.allowed_fields_map.items():
             is_missing = False
             try:
                 v = data[obj.name or fname]
@@ -534,6 +449,7 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
         JSON_SCHEMA_TYPE = "object"
         def __init__(
             self,
+            field_class,
             required=True,
             name=None,
             description=None,
@@ -541,10 +457,11 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
             max_properties=None,
             min_properties=None,
             use_default=None,
-            field_dependencies=None,
             additional_properties=False,
+            field_dependencies=None,
         ):
             super().__init__(
+                field_class,
                 required=required,
                 name=name,
                 title=title,
@@ -557,10 +474,11 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
             self.field_dependencies = field_dependencies or []
             self.additional_properties = additional_properties
 
-        def to_json_schema(self, allowed_fields):
+        def to_json_schema(self):
+            _meta = self.field_class._meta
             _schema = {"type": self.JSON_SCHEMA_TYPE, "properties": {}, "required": []}
             #  __dict__ only refers currrent class not super chain.
-            for attr_name, field_obj in allowed_fields:
+            for attr_name, field_obj in _meta.allowed_fields_map.items():
                 fname = field_obj.name if field_obj.name is not None else attr_name
                 _schema["properties"][fname] = field_obj.to_json_schema()
                 if field_obj.required:
@@ -569,12 +487,16 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
                 _schema["maxProperties"] = self.max_properties
             if self.min_properties is not None:
                 _schema["minProperties"] = self.min_properties
-            _field_dependencies = self.field_dependencies
+            _field_dependencies = self.field_dependencies or getattr(
+                _meta, 'field_dependencies', []
+            )
             if _field_dependencies:
                 _schema["dependencies"] = {}
             for d in _field_dependencies:
                 _schema["dependencies"][d.source] = d.targets
-            _schema["additionalProperties"] = self.additional_properties
+            _schema["additionalProperties"] = self.additional_properties or getattr(
+                _meta, 'additional_properties', False
+            )
             return _schema
 
     @classmethod
@@ -591,13 +513,4 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
         instance.deserialize(**data)
         return instance
 
-    def validate(self, *args, **kwargs):
-        schemaobj = self.asField()
-        schema = schemaobj.to_json_schema(self._get_allowed_fields_values())
-        return schemaobj.validate_instance(self, *args, schema=schema, **kwargs)
-
-    def validation_errors(self, *args, **kwargs):
-        schemaobj = self.asField()
-        schema = schemaobj.to_json_schema(self._get_allowed_fields_values())
-        return schemaobj.validation_errors(self, *args, schema=schema, **kwargs)
 
