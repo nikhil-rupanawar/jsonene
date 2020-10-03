@@ -2,19 +2,36 @@ from jsonene.fields import Integer, String, Const, Format, List, SchemaType, Nul
 from jsonene.operators import AnyOf, Not
 from pprint import pprint
 
+"""
 print(Integer.Field().validate_instance(1))
 print(List.Field(String, Integer, String).validate_instance(['1', 2]))
 l = List.deserialize(
     List.Field(String, Integer, String),
     ['1', '2', '3', 1, 2]
 )
+"""
+List.Field(
+    List.Field(Integer),
+    List.Field(String)
+).validate_instance([[1, 5], ['7', '7']])
 
+l = List.deserialize(
+    List.Field(
+        List.Field(Integer),
+        List.Field(String)
+    ),
+    [[1, '2']]
+)
+
+print(isinstance(l[0], List))
+print(l, l[0][0])
 
 
 class Person(SchemaType):
     age = Integer.Field()
     name = String.Field(null=False, blank=False)
     conutry = Const.Field('India')
+
 
 class Engineer(Person):
     degree = String.Field()

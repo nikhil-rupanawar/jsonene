@@ -24,6 +24,12 @@ class BaseField:
     def validation_errors(self):
         return list(self.asField().validation_errors(self))
 
+    def __repr__(self):
+        return f'{self.__class__}/{super().__repr__()}'
+
+    def __str__(self):
+        return f'{self.__class__}/{super().__str__()}'
+
     class Schema:
         JSON_SCHEMA_TYPE = "object"
         def __init__(
@@ -306,7 +312,7 @@ class RootBaseField(BaseField):
     pass
 
 
-class List(list, RootBaseField):
+class List(RootBaseField, list):
     def serialize(self):
         l = []
         for e in self:
@@ -319,11 +325,22 @@ class List(list, RootBaseField):
     @classmethod
     def deserialize(cls, schema_obj, data, strict=False):
         obj = cls()
-        for item, dtype in zip(data, cycle(schema_obj.datatypes)):
+        if isinstance(schema_obj.types, list):
+            types = cycle(schema_obj.types)
+        else:
+            types = cycle([schema_obj.types])
+
+        for item, dtype, _type in zip(
+            data,
+            cycle(schema_obj.datatypes),
+            types
+        ):
             v = item
             if dtype:
-                if issubclass(dtype, RootBaseField):
+                if issubclass(dtype, SchemaType):
                     v = dtype.deserialize(v)
+                elif dtype is List or issubclass(dtype, List):
+                    dtype.deserialize(_type, v)
                 else:
                     v = dtype(v)
             obj.append(v)
@@ -351,10 +368,14 @@ class List(list, RootBaseField):
             _types = []
             _datatypes = []
             for _type in types:
-                assert issubclass(_type, BaseField)
-                _datatypes.append(_type)
-                _type = _type.asField()
-                _types.append(_type)
+                assert isinstance(_type, List.Schema) or issubclass(_type, BaseField)
+                if isinstance(_type, List.Schema):
+                    _datatypes.append(List)
+                    _types.append(_type)
+                else:
+                    _datatypes.append(_type)
+                    _type = _type.asField()
+                    _types.append(_type)
 
             if len(_types):
                 _types = _types if len(_types) > 1 else _types[0]
