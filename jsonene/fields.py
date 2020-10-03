@@ -15,6 +15,8 @@ class BaseField:
     @classmethod
     def asField(cls, *args, **kwargs):
         return cls.Schema(cls, *args, **kwargs)
+    
+    Field = asField
 
     def validate(self):
         return self.asField().validate_instance(self)

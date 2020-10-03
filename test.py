@@ -2,35 +2,35 @@ from jsonene.fields import Integer, String, Const, Format, List, SchemaType, Nul
 from jsonene.operators import AnyOf, Not
 from pprint import pprint
 
-print(Integer.asField().validate_instance(1))
-print(List.asField(String, Integer, String).validate_instance(['1', 2]))
+print(Integer.Field().validate_instance(1))
+print(List.Field(String, Integer, String).validate_instance(['1', 2]))
 l = List.deserialize(
-    List.asField(String, Integer, String),
+    List.Field(String, Integer, String),
     ['1', '2', '3', 1, 2]
 )
 
 
 
 class Person(SchemaType):
-    age = Integer.asField()
-    name = String.asField(null=False, blank=False)
-    conutry = Const.asField('India')
+    age = Integer.Field()
+    name = String.Field(null=False, blank=False)
+    conutry = Const.Field('India')
 
 class Engineer(Person):
-    degree = String.asField()
+    degree = String.Field()
 
 
 class House(SchemaType):
-    owner = AnyOf(Person).asField()
+    owner = AnyOf(Person).Field()
 
 
 class EngineersHouse(House):
-    owner = Engineer.asField() 
+    owner = Engineer.Field() 
 
 
-#pprint(Person.asField().json_schema)
-#pprint(House.asField().json_schema)
-pprint(EngineersHouse.asField().json_schema)
+#pprint(Person.Field().json_schema)
+#pprint(House.Field().json_schema)
+pprint(EngineersHouse.Field().json_schema)
 
 p = Person(age=99, name='Nikhil', conutry='India')
 pprint(p.validation_errors())
@@ -49,7 +49,7 @@ wow = EngineersHouse.deserialize(data)
 print(wow['owner'])
 
 class EngineerSociety(SchemaType):
-    houses = List.asField(EngineersHouse)
+    houses = List.Field(EngineersHouse)
 
 
 es = EngineerSociety(houses=List([eh, wow]))
