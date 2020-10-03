@@ -8,9 +8,7 @@ from cached_property import cached_property
 from functools import partial
 from jsonschema.validators import validator_for
 from jsonschema import draft7_format_checker
-from .mixins import ValidatorMixin, JsonSchemableMixin, InstanceMixin
-from .objects import BaseInstance, SingleValueInstance
-
+from itertools import cycle
 
 # base class for all fields
 class BaseField:
@@ -132,8 +130,9 @@ class SingleValueField(BaseField):
     def serialize(self):
         return self._value
 
-    def deserialize(self, value):
-        self._value = value
+    @classmethod
+    def deserialize(cls, value):
+        return cls(value)
 
     @classmethod
     def _confirm_json_loaded(cls, data):
@@ -315,6 +314,19 @@ class List(list, RootBaseField):
                 l.append(e.serialize())
         return l
 
+    @classmethod
+    def deserialize(cls, schema_obj, data, strict=False):
+        obj = cls()
+        for item, dtype in zip(data, cycle(schema_obj.datatypes)):
+            v = item
+            if dtype:
+                if issubclass(dtype, RootBaseField):
+                    v = dtype.deserialize(v)
+                else:
+                    v = dtype(v)
+            obj.append(v)
+        return obj
+
     class Schema(BaseField.Schema):
         JSON_SCHEMA_TYPE = "array"
         def __init__(
@@ -335,9 +347,11 @@ class List(list, RootBaseField):
                 **kwargs,
             )
             _types = []
+            _datatypes = []
             for _type in types:
-                if not isinstance(_type, BaseField.Schema):
-                   _type = _type.asField()
+                assert issubclass(_type, BaseField)
+                _datatypes.append(_type)
+                _type = _type.asField()
                 _types.append(_type)
 
             if len(_types):
@@ -346,6 +360,7 @@ class List(list, RootBaseField):
                 _types = []
 
             self.types = _types
+            self.datatypes = _datatypes
             self.max_items = max_items
             self.min_items = min_items
             self.unique_items = unique_items
@@ -432,8 +447,10 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
                 data[k] = v
         return data
 
-    def deserialize(self, data):
-        for fname, obj in self._meta.allowed_fields_map.items():
+    @classmethod
+    def deserialize(cls, data):
+        schema_object = cls()
+        for fname, obj in schema_object._meta.allowed_fields_map.items():
             is_missing = False
             try:
                 v = data[obj.name or fname]
@@ -443,7 +460,11 @@ class SchemaType(dict, RootBaseField, metaclass=SchemaTypeMeta):
                 else:
                     is_missing = True
             if not is_missing:
-                setattr(self, obj.name or fname, obj.from_json(v))
+                if isinstance(obj, List.Schema):
+                    schema_object[obj.name or fname] = obj.field_class.deserialize(obj, v)
+                else:
+                    schema_object[obj.name or fname] = obj.field_class.deserialize(v)
+        return schema_object
 
     class Schema(RootBaseField.Schema):
         JSON_SCHEMA_TYPE = "object"

@@ -1,5 +1,5 @@
 from factory import BaseDictFactory, BaseListFactory
-from .fields import Schema, List
+from .fields import SchemaType, List
 
 
 class SchemaFactory(BaseDictFactory):
@@ -10,8 +10,8 @@ class SchemaFactory(BaseDictFactory):
     def _build(cls, model_schema, *args, **kwargs):
         if args:
             assert False, "Not allowed"
-        assert issubclass(model_schema, Schema)
-        return model_schema.instance(**kwargs)
+        assert issubclass(model_schema, SchemaType)
+        return model_schema(**kwargs)
 
     @classmethod
     def _create(cls, model_schema, *args, **kwargs):
@@ -26,10 +26,9 @@ class ListSchemaFactory(BaseListFactory):
     def _build(cls, model_schema, *args, **kwargs):
         if args:
             assert False, "Not allowed"
-
         assert issubclass(model_schema, List)
         values = kwargs.values()
-        return model_schema.instance(values)
+        return model_schema([*values])
 
     @classmethod
     def _create(cls, model_schema, *args, **kwargs):
