@@ -1,71 +1,53 @@
-from .fields import BaseField 
-from .exceptions import ValidationError
+import inspect
+from .fields import BaseSchemaField, ObjectType
 
 
-class BaseOperatorField(BaseField):
-    OPERATOR = ''
-    def __init__(self, *types):
-        self._types = types
+class BaseOperatorSchemaField(BaseSchemaField):
+    OPERATOR = ""
 
-    class Schema(BaseField.Schema):
-        def __init__(
-            self,
-            field_class,
-            *types,
-            required=True,
-            name=None,
-            title=None,
-            description=None
-        ):
-            super().__init__(
-                field_class,
-                required=required,
-                name=name,
-                title=title,
-                description=description
-            )
-            _types = []
-            for _type in types:
-                assert issubclass(_type, BaseField) is True
-                _types.append(_type.asField())
-            self._types = _types
-
-        def from_json(self, data):
-            return _type.from_json(data)
-
-        def to_json_schema(self):
-            schema = []
-            for t in self._types:
-                schema.append(t.to_json_schema())
-            return {self.field_class.OPERATOR: schema}
-
-    def asField(self, *args, **kwargs):
-        return self.Schema(
-            self.__class__,
-            *self._types,
-            *args,
-            **kwargs
+    def __init__(self, *types, required=True, name=None, title=None, description=None):
+        super().__init__(
+            required=required, name=name, title=title, description=description
         )
+        _types = []
+        for _type in types:
+            is_class = inspect.isclass(_type)
+            if is_class and issubclass(_type, ObjectType):
+                _type = _type.asField()
+            elif isinstance(_type, BaseSchemaField):
+                _type = _type
+            elif is_class and issubclass(_type, BaseSchemaField):
+                _type = _type()
+            else:
+                assert not is_class
+                _type = _type
+            _types.append(_type)
+        self._types = _types
+
+    def to_json_schema(self):
+        schema = []
+        for t in self._types:
+            if isinstance(t, BaseSchemaField):
+                schema.append(t.to_json_schema())
+            else:
+                schema.append(t)
+        return {self.OPERATOR: schema}
 
 
-class AnyOf(BaseOperatorField):
+class AnyOf(BaseOperatorSchemaField):
     OPERATOR = "anyOf"
 
 
-class AllOf(BaseOperatorField):
+class AllOf(BaseOperatorSchemaField):
     OPERATOR = "allOf"
 
 
-class OneOf(BaseOperatorField):
+class OneOf(BaseOperatorSchemaField):
     OPERATOR = "oneOf"
 
 
-class Not(BaseOperatorField):
+class Not(BaseOperatorSchemaField):
     OPERATOR = "not"
-    class Schema(BaseOperatorField.Schema):
-        def __init__(self, _type, *args, **kwargs):
-            super().__init__(
-                *(_type,),
-                *args,
-                **kwargs
-            )
+
+    def __init__(self, _type, *args, **kwargs):
+        super().__init__(*(_type,), *args, **kwargs)

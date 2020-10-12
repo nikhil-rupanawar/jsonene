@@ -1,80 +1,48 @@
-from jsonene.fields import Integer, String, Const, Format, List, SchemaType, Null
-from jsonene.operators import AnyOf, Not
+import enum
 from pprint import pprint
+import jsonene
 
-"""
-print(Integer.Field().validate_instance(1))
-print(List.Field(String, Integer, String).validate_instance(['1', 2]))
-l = List.deserialize(
-    List.Field(String, Integer, String),
-    ['1', '2', '3', 1, 2]
+class Gender(enum.Enum):
+    MALE = "Male"
+    FEMALE = "Female"
+    OTHER = "Other"
+
+
+class Person(jsonene.ObjectType):
+    class Meta:
+        field_dependencies = [jsonene.RequiredDependency("age", ["date_of_birth"])]
+
+    age = jsonene.Integer(required=False)
+    name = jsonene.String()
+    country = jsonene.Const("India")
+    email = jsonene.Format(jsonene.Format.EMAIL)
+    contact = jsonene.String(required=False)
+    date_of_birth = jsonene.Format(jsonene.Format.DATE, required=False)
+    gender = jsonene.Enum(Gender)
+    ip = jsonene.Format(jsonene.Format.IPV4)
+
+
+class Seller(Person):
+    brokerrage = jsonene.Integer(required=False)
+    is_broker = jsonene.AnyOf(True, False)
+    is_owner = jsonene.AnyOf(True, False)
+
+
+# Nested schema
+class House(jsonene.ObjectType):
+    owner = jsonene.Field(Person)
+    seller = jsonene.Field(Seller)
+
+# Know your json-schema
+pprint(Person.asField().json_schema)
+
+owner = Person(
+    name="test",
+    age=30,
+    country="India",
+    email="conikhil@gmail.com",
+    gender=Gender.MALE.value,
+    date_of_birth="1989-09-11",
+    ip="10.8.9.0",
 )
-"""
-List.Field(
-    List.Field(Integer),
-    List.Field(String)
-).validate_instance([[1, 5], ['7', '7']])
-
-l = List.deserialize(
-    List.Field(
-        List.Field(Integer),
-        List.Field(String)
-    ),
-    [[1, '2']]
-)
-
-print(isinstance(l[0], List))
-print(l, l[0][0])
-
-
-class Person(SchemaType):
-    age = Integer.Field()
-    name = String.Field(null=False, blank=False)
-    conutry = Const.Field('India')
-
-
-class Engineer(Person):
-    degree = String.Field()
-
-
-class House(SchemaType):
-    owner = AnyOf(Person).Field()
-
-
-class EngineersHouse(House):
-    owner = Engineer.Field() 
-
-
-#pprint(Person.Field().json_schema)
-#pprint(House.Field().json_schema)
-pprint(EngineersHouse.Field().json_schema)
-
-p = Person(age=99, name='Nikhil', conutry='India')
-pprint(p.validation_errors())
-
-h = House(owner=p)
-pprint(h.validation_errors())
-
-
-e = Engineer(age=99, name='Nikhil', conutry='India', degree='BE')
-eh = EngineersHouse(owner=e)
-pprint(eh)
-pprint(eh.validation_errors())
-
-data = {'owner': {'age': 99, 'conutry': 'India', 'degree': 'BE', 'name': 'Nikhil'}}
-wow = EngineersHouse.deserialize(data)
-print(wow['owner'])
-
-class EngineerSociety(SchemaType):
-    houses = List.Field(EngineersHouse)
-
-
-es = EngineerSociety(houses=List([eh, wow]))
-es.validate()
-data = es.serialize()
-print(data)
-EngineerSociety.deserialize(data)
-
-
-
-
+owner.validate(check_formats=True)
